@@ -1,0 +1,21 @@
+
+[banner]
+title = "Banco Andes"
+subtitle = "Asistente de Orientación Financiera Digital"
+font = "small"
+
+[colors]
+primary = "bright_yellow"
+accent  = "yellow"
+agent   = "bright_green"
+error   = "red"
+warning = "yellow"
+dim     = "dim"
+
+[prompt]
+symbol = "cliente ❯ "
+
+[display]
+show_banner     = true
+show_tool_calls = true
+agent_title     = "Banco Andes"

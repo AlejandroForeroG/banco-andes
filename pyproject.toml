@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "banco-andes"
+version = "0.1.0"
+description = "Orientador financiero con revisión independiente, memoria y MCP"
+requires-python = ">=3.11"
+dynamic = ["dependencies"]
+
+[project.scripts]
+agente = "cli.main:cli"
+
+[tool.setuptools]
+packages = ["cli", "agent", "agent.memory", "agent.reasoning", "agente2", "mcp_server", "observability"]
+py-modules = ["contract"]
+
+[tool.setuptools.package-data]
+agente2 = ["*.sql", "data/*.sqlite3"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--strict-markers"
+markers = [
+    "review: contrato, seguridad e integración de dos agentes",
+    "cli: ambiente, CLI y configuración",
+    "tools: herramientas, grafo del agente y servidor MCP",
+    "observability: observabilidad con LangSmith (requiere credenciales)",
+    "memory: memoria de corto y largo plazo",
+    "reasoning: descomposición de tareas (ReAct / Plan-and-Execute)",
+]

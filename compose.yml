@@ -1,0 +1,78 @@
+services:
+  identidad:
+    image: banco-andes-agent:local
+    build: .
+    user: '0:0'
+    entrypoint: ['python', '-m', 'agente2.bootstrap']
+    environment:
+      REVIEW_KEY_FILE: /identity/review.key
+    volumes: ['identity:/identity']
+    restart: 'no'
+  api:
+    image: banco-andes-api:local
+    build: ./demo-api
+    expose: ['8080']
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/openapi.json', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+  agente2:
+    image: banco-andes-reviewer:local
+    build: .
+    entrypoint: ['python', '-m', 'uvicorn', 'agente2.server:app', '--host', '0.0.0.0', '--port', '8002', '--no-access-log']
+    depends_on:
+      identidad:
+        condition: service_completed_successfully
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b-instruct-2507-q8_0}
+      POLICIES_DB: /app/agente2/data/politicas.sqlite3
+      REVIEW_KEY_FILE: /identity/review.key
+      REVIEW_TOTAL_SECONDS: '90'
+      REVIEW_CALL_SECONDS: '30'
+      LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2:-false}
+      LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY:-}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-banco-andes}
+    extra_hosts: ['host.docker.internal:host-gateway']
+    volumes: ['identity:/identity:ro']
+    read_only: true
+    tmpfs: ['/tmp']
+    expose: ['8002']
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+  agente:
+    image: banco-andes-agent:local
+    build: .
+    stdin_open: true
+    tty: true
+    depends_on:
+      api:
+        condition: service_healthy
+      agente2:
+        condition: service_healthy
+    environment:
+      API_BASE_URL: http://api:8080
+      CASO_NEGOCIO: finanzas
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b-instruct-2507-q8_0}
+      AGENT_DATA_DIR: /home/agente/.agent_data
+      REVIEW_URL: http://agente2:8002
+      REVIEW_KEY_FILE: /identity/review.key
+      REVIEW_TOTAL_SECONDS: '90'
+      REVIEW_CALL_SECONDS: '30'
+      LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2:-false}
+      LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY:-}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-banco-andes}
+    extra_hosts: ['host.docker.internal:host-gateway']
+    volumes: ['agent_data:/home/agente/.agent_data', 'identity:/identity:ro']
+    restart: unless-stopped
+volumes:
+  agent_data:
+  identity:
