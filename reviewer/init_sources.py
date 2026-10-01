@@ -1,10 +1,10 @@
-"""Monta únicamente fuentes sintéticas; no ejecuta un agente."""
+'Initialize synthetic policy sources without invoking a model.'
 import argparse
 from pathlib import Path
 import sqlite3
 
 BASE = Path(__file__).resolve().parent
-DEFAULT_DB = BASE / 'data' / 'politicas.sqlite3'
+DEFAULT_DB = BASE / 'data' / 'policies.sqlite3'
 
 
 def montar(destino=DEFAULT_DB):
@@ -18,9 +18,9 @@ def montar(destino=DEFAULT_DB):
             conexion.executescript((BASE / 'schema.sql').read_text(encoding='utf-8'))
             conexion.executescript((BASE / 'seed.sql').read_text(encoding='utf-8'))
             if conexion.execute('PRAGMA foreign_key_check').fetchall():
-                raise ValueError('Referencias inválidas en la semilla')
+                raise ValueError('Invalid seed references')
             conteos = {tabla: conexion.execute(f'SELECT count(*) FROM {tabla}').fetchone()[0]
-                       for tabla in ('politicas', 'criterios', 'ejemplos')}
+                       for tabla in ('policies', 'criteria', 'examples')}
     except Exception:
         if 'conexion' in locals():
             conexion.close()
@@ -37,6 +37,6 @@ if __name__ == '__main__':
     parser.add_argument('--db', type=Path, default=DEFAULT_DB)
     args = parser.parse_args()
     try:
-        print({'fuente': 'SINTÉTICA DE DEMOSTRACIÓN', 'db': str(args.db), 'filas': montar(args.db)})
+        print({'source': 'SYNTHETIC DEMO DATA', 'db': str(args.db), 'filas': montar(args.db)})
     except FileExistsError:
-        parser.exit(1, 'La BD ya existe; consulte la existente o indique otro --db.\n')
+        parser.exit(1, 'The database already exists; query it or choose another --db.\n')

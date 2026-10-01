@@ -1,20 +1,15 @@
-"""Banco Andes."""
+'Banco Andes.'
 
 
 def get_cli():
-    """Objeto CLI del proyecto (el grupo `click`/`typer` raíz, sin invocar)."""
+    'Return the root Click command without invoking it.'
     from cli.main import cli
 
     return cli
 
 
 def get_settings():
-    """Configuración del proyecto.
-
-    Debe exponer al menos los atributos `ollama_model`, `api_base_url` y
-    `caso_negocio`, leídos de variables de entorno (nunca escritos a mano en
-    el código).
-    """
+    'Read model, business API, and domain settings from environment variables.'
     from cli.config import get_settings as _impl
 
     return _impl()
@@ -57,14 +52,14 @@ def build_checkpointer():
 
 
 def build_store():
-    """Store de memoria de largo plazo (persiste ENTRE conversaciones)."""
+    'Build the persistent cross-conversation memory store.'
     from agent.memory.store import build_store as _impl
 
     return _impl()
 
 
 def build_reasoning_graph():
-    """build reasoning graph."""
+    'Compile the ReAct graph with reason and act nodes.'
 
 
     from agent.reasoning.react import build_reasoning_graph as _impl

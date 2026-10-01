@@ -22,9 +22,9 @@ def test_financial_demo_flow():
         assert client.get('/finanzas/productos').json()
         escalation = client.post('/finanzas/escalamientos', json={
             'cliente_id': customer['id'],
-            'intencion': 'Orientación de vivienda',
+            'intencion': 'Housing guidance',
             'informacion_recopilada': {'consentimiento': True},
-            'razon': 'Solicitud de asesor',
+            'razon': 'Advisor request',
         })
         assert escalation.status_code == 201
         assert escalation.json()['id'].startswith('ESC-')

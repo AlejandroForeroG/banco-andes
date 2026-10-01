@@ -1,4 +1,4 @@
-"""Grafo stateful del asistente financiero con ciclo ReAct observable."""
+'Stateful financial assistant with an observable ReAct cycle.'
 
 from __future__ import annotations
 
@@ -28,70 +28,28 @@ from observability.tracing import sanitizar_traza
 
 DEFAULT_MAX_ITERATIONS = 6
 SHORT_TERM_DENIAL_MARKERS = (
-    "no tengo memoria de nuestra conversaci",
-    "no tengo acceso a la conversaci",
-    "necesitas iniciar sesi",
-    "sesión autenticada",
+    "i do not remember our conversat",
+    "i cannot access the conversat",
+    "you need to sign in",
+    "i don't remember",
+    "i can't access",
+    "i have no memory",
+    "please sign in",
+    "please log in",
+    "you need to log in",
     "/login",
 )
 
-SYSTEM_PROMPT = """Eres el asistente de orientación financiera de Banco Andes.
-Primero interpreta la intención. Usa herramientas para todo dato de producto,
-perfil, historial o registro; nunca inventes información. Las consultas públicas
-no requieren identificación. Los datos privados salen de la sesión que el
-cliente ya abrió en el canal: nunca pidas ni manejes su clave ni tokens, y si
-una herramienta reporta que no hay sesión, pídele que inicie sesión con /login.
-Para preguntas como "mi crédito", "mi perfil", "mi score", "mi capacidad" o
-"mis productos activos", usa consultar_perfil_financiero. No uses
-verificar_cliente como paso previo a una consulta privada y no vuelvas a pedir
-la identificación después del login. No prometas la aprobación de un crédito ni
-califiques al cliente como "apto", "preaprobado", "con alta probabilidad" o con
-un perfil "sólido para aprobar". Puedes comparar requisitos publicados con datos
-observados, pero aclara que esa coincidencia no determina elegibilidad ni aprobación. Si una tool
-falla, explica la limitación y ofrece reintentar o escalar. No declares que un
-producto es el mejor sin conocer el perfil y la necesidad completa. No prometas
-notificaciones ni acciones futuras que la tool no haya confirmado. Responde en
-caso de solicitar asesor indicando el comando /asesor del CLI, que pide consentimiento.
-Responde en
-español, de forma clara y breve: la respuesta final tiene como máximo 100 palabras.
-Prioriza la necesidad del cliente y las limitaciones verificadas; evita enumerar
-todos los campos del catálogo. La disponibilidad no implica aprobación.
+SYSTEM_PROMPT = """You are Banco Andes' financial guidance assistant. Always respond in English, clearly and briefly, with at most 100 words in the final answer.
+Interpret the user's intent first. Use tools for every product, profile, history, or recorded fact; never invent information. Public queries do not require identification. Private data comes from the authenticated channel session: never request or handle PINs or tokens. If a tool reports no session, ask the customer to use /login.
+For questions about my loan, profile, score, borrowing capacity, or active products, call query_financial_profile directly. Do not call verify_customer before a private query or request identification again after login. Never promise loan approval, describe a customer as eligible or preapproved, estimate approval probability, or infer approval from their profile. You may compare published requirements with observed facts, but state that a match does not establish eligibility or approval. Explain tool failures and offer retry or handoff. Do not claim a product is best without verified requirements and the full customer need. Never promise notifications or future actions that tools have not confirmed. Refer advisor requests to /advisor, which asks for consent.
 
-Memoria: cuando un cliente autenticado pida explícitamente recordar un objetivo
-o preferencia estable, o cuando una tool confirme un hito como un escalamiento,
-usa recordar_preferencia_financiera. Recupera ese contexto en conversaciones
-futuras, pero confirma si sigue vigente antes de actuar. Nunca guardes claves,
-tokens, cuentas, ingresos, score, deudas ni otros datos sensibles o variables;
-consúltalos en la API empresarial cuando se necesiten.
+Memory: when an authenticated customer explicitly asks to remember a stable goal or preference, or a tool confirms a milestone such as a handoff, use remember_financial_preference. Recover that context in future conversations and confirm it remains current before acting. Never store PINs, tokens, accounts, income, scores, debts, or other sensitive or changing financial data; query the business API when needed.
+The message history and summary belong to the current thread and are available short-term memory without authentication. Answer from that context first. Do not use query_financial_memory to explain what happened in this thread or answer general questions about this conversation. That tool is only for durable preferences across conversations and requires an active session. A missing long-term memory session does not mean the current thread history was lost.
 
-El historial de mensajes y el resumen pertenecen a la conversación actual y son
-memoria de corto plazo ya disponible; no requieren una sesión autenticada.
-Responde primero con ese contexto. No uses consultar_memoria_financiera para
-explicar qué ocurrió dentro del mismo thread ni ante preguntas generales como
-"¿qué recuerdas de nuestra conversación?". Esa tool se usa únicamente para
-preferencias duraderas entre conversaciones y requiere una sesión activa. Si la
-tool de memoria larga falla o no hay sesión, no afirmes que perdiste el historial
-del thread: ambos mecanismos son independientes.
+Amounts: normalize colloquial monetary expressions before reasoning or saving. Preserve Colombian peso amounts and any stated payment period. For example, one million five hundred thousand means 1.500.000 COP, never 500 million COP. If an amount has multiple interpretations, ask for the exact amount and wait for confirmation before calling a memory tool. Never save a guess.
 
-Montos: normaliza expresiones coloquiales colombianas antes de razonar o guardar.
-"Un millón quinientos" o "millón quinientos" significa 1.500.000 COP, nunca
-500 millones. Indica también la periodicidad cuando el cliente la expresó, por
-ejemplo "1.500.000 COP mensuales". Si una frase admite más de una interpretación,
-pregunta el valor exacto y espera confirmación antes de llamar una herramienta de
-memoria; no guardes una suposición.
-
-Patrón de razonamiento: trabaja con un ciclo ReAct explícito y auditable. Antes
-de cada acción escribe una sola línea que empiece por "Pensamiento:" y resuma,
-sin revelar razonamiento interno extenso, qué dato verificable falta y por qué
-la siguiente herramienta es necesaria. Haz como máximo una llamada de
-herramienta por iteración; espera su observación antes de decidir la siguiente
-acción. Si el Pensamiento concluye que falta un dato disponible mediante una
-herramienta, DEBES incluir la llamada estructurada a esa herramienta en la misma
-respuesta: nunca termines el turno con solo un Pensamiento. No anuncies acciones
-que no vayas a ejecutar. Cuando ya tengas toda la información, no llames más
-herramientas y empieza la síntesis con "Respuesta final:". Una tarea compleja puede requerir varios ciclos
-Pensamiento → Acción → Observación antes de la respuesta final.
-"""
+Use an explicit, auditable ReAct cycle. Before each action, write one line starting with "Thought:" that briefly states the missing verifiable fact and why the next tool is needed, without revealing extended internal reasoning. Make at most one tool call per iteration and await its observation. If your Thought says a fact available through a tool is missing, include the structured tool call in the same response; never end with only a Thought. Do not announce actions you will not execute. Once enough information is available, stop calling tools and begin the synthesis with "Final answer:". Complex tasks may need several Thought → Action → Observation cycles."""
 
 
 class AgentState(TypedDict, total=False):
@@ -127,47 +85,47 @@ def _session_status_message() -> SystemMessage:
     """Tell the model only whether the channel is authenticated, never who or how."""
     if active_session() is None:
         content = (
-            "Estado del canal: no hay una sesión autenticada. Si el cliente pide "
-            "datos privados, indícale que use /login; no le solicites identificación "
-            "ni clave dentro de la conversación."
+            "Channel status: no authenticated session is active. If the customer requests "
+            "private data, ask them to use /login; do not request their customer ID "
+            "or PIN inside the conversation."
         )
     else:
         content = (
-            "Estado del canal: hay una sesión autenticada activa. Para datos privados, "
-            "invoca directamente la herramienta correspondiente sin pedir identificación, "
-            "clave ni otro dato de autenticación."
+            "Channel status: an authenticated session is active. For private data, "
+            "call the relevant tool directly without asking for identification, "
+            "a PIN, or other authentication data."
         )
     return SystemMessage(content=content)
 
 
 def _long_term_memory_message(state: AgentState) -> SystemMessage:
-    """Inyecta preferencias duraderas del cliente sin exponer su identidad."""
+    'Inject durable customer preferences without revealing their identity.'
     remembered = state.get("long_term_memory", {})
     if not remembered:
         status = (
-            "no está disponible porque el canal no está autenticado"
+            "is unavailable because the channel is not authenticated"
             if active_session() is None
-            else "no contiene preferencias guardadas para el cliente autenticado"
+            else "contains no saved preferences for the authenticated customer"
         )
         return SystemMessage(
             content=(
-                f"Memoria de largo plazo: {status}. Esto no afecta el historial ni "
-                "el resumen de la conversación actual, que sí están disponibles."
+                f"Long-term memory: {status}. This does not affect the history or "
+                "summary of the current conversation, which remain available."
             )
         )
     return SystemMessage(
         content=(
-            "Memoria de largo plazo recuperada para la sesión actual: "
+            "Long-term memory retrieved for the current session: "
             f"{json.dumps(remembered, ensure_ascii=False)}. "
-            "Trátala como contexto declarado previamente, no como datos bancarios vigentes."
+            "Treat it as previously declared context, not current banking data."
         )
     )
 
 
 def _tool_error_message(error: Exception) -> str:
     return (
-        f"La herramienta falló: {error}. No inventes un resultado; "
-        "explica el problema y ofrece una alternativa segura."
+        f"The tool failed: {error}. Do not invent a result; "
+        "explain the problem and offer a safe alternative."
     )
 
 
@@ -177,18 +135,18 @@ def _correct_authenticated_thought(content: str, tool_calls: list[dict]) -> str:
         return content
     normalized = content.lower()
     contradictions = (
-        "no hay sesión",
-        "no existe una sesión",
-        "sesión no está activa",
-        "no se puede almacenar",
-        "pedir autenticación",
+        "no session is active",
+        "no session exists",
+        "session is not active",
+        "cannot store",
+        "request authentication",
     )
     if not any(marker in normalized for marker in contradictions):
         return content
-    tool_name = tool_calls[0].get("name", "la herramienta correspondiente")
+    tool_name = tool_calls[0].get("name", "the relevant tool")
     return (
-        "Pensamiento: hay una sesión autenticada activa y la solicitud requiere "
-        f"ejecutar {tool_name} para obtener un resultado verificable."
+        "Thought: an authenticated session is active and the request requires "
+        f"run {tool_name} to obtain a verifiable result."
     )
 
 
@@ -213,12 +171,12 @@ def _next_explicitly_requested_tool(
         if isinstance(message, ToolMessage) and message.name
     }
     required: list[tuple[str, dict]] = []
-    if "perfil" in request:
-        required.append(("consultar_perfil_financiero", {}))
-    if "historial" in request or "solicitudes" in request:
-        required.append(("consultar_historial_solicitudes", {}))
-    if "vivienda" in request and ("crédito" in request or "credito" in request):
-        required.append(("consultar_catalogo_creditos", {"categoria": "vivienda"}))
+    if "profile" in request:
+        required.append(("query_financial_profile", {}))
+    if "history" in request or "applications" in request:
+        required.append(("query_application_history", {}))
+    if ("housing" in request or "mortgage" in request) and ("loan" in request or "credit" in request):
+        required.append(("query_credit_catalog", {"categoria": "housing"}))
     return next(
         (
             specification
@@ -239,7 +197,7 @@ def build_graph(tools: list | None = None, checkpointer=None):
 
     settings = get_settings()
 
-    tools = [tool for tool in tools if tool.name != 'registrar_escalamiento']
+    tools = [tool for tool in tools if tool.name != 'register_handoff']
     available_tool_names = {tool.name for tool in tools}
     llm = ChatOllama(
         model=settings.ollama_model,
@@ -251,7 +209,7 @@ def build_graph(tools: list | None = None, checkpointer=None):
     llm_with_tools = llm.bind_tools(tools)
 
     def prepare_turn(_: AgentState) -> dict:
-        """Recupera memoria y reinicia el presupuesto y la traza del turno."""
+        'Load customer memory and reset the turn budget and trace.'
         session = active_session()
         remembered = load_client_memory(session.client_id) if session else {}
         return {
@@ -270,7 +228,7 @@ def build_graph(tools: list | None = None, checkpointer=None):
         return "reason"
 
     async def compress_context(state: AgentState) -> dict:
-        """Resume el pasado y conserva una cola reciente sin partir un turno."""
+        'Summarize older messages without splitting a recent turn.'
         messages = state.get("messages", [])
         if not messages:
             return {}
@@ -293,17 +251,17 @@ def build_graph(tools: list | None = None, checkpointer=None):
         summary_request = [
             SystemMessage(
                 content=(
-                    "Genera únicamente una lista breve de hechos del diálogo: objetivos, "
-                    "preferencias, montos, plazos, decisiones, resultados confirmados de tools "
-                    "y pendientes. Empieza con 'Hechos del hilo:'. No hables de permisos, "
-                    "disponibilidad de memoria, sesiones, login ni capacidad para recordar. "
-                    "No incluyas claves, tokens ni datos de autenticación."
+                    "Generate only a short list of conversation facts: goals, "
+                    "preferences, amounts, terms, decisions, confirmed tool results, "
+                    "and pending items. Start with 'Thread facts:'. Do not discuss permissions, "
+                    "memory availability, sessions, login, or ability to remember. "
+                    "Do not include PINs, tokens, or authentication data."
                 )
             ),
             SystemMessage(
-                content=f"Resumen acumulado anterior: {safe_previous_summary or '(ninguno)'}"
+                content=f"Previous cumulative summary: {safe_previous_summary or '(none)'}"
             ),
-            SystemMessage(content=f"Conversación a comprimir:\n{source_transcript}"),
+            SystemMessage(content=f"Conversation to compress:\n{source_transcript}"),
         ]
         try:
             response = await llm.ainvoke(summary_request)
@@ -313,9 +271,9 @@ def build_graph(tools: list | None = None, checkpointer=None):
                 else str(response.content)
             )
             if _summary_confuses_authentication(summary):
-                summary = f"Hechos del hilo:\n{fallback_context[-6000:]}"
+                summary = f"Thread facts:\n{fallback_context[-6000:]}"
         except Exception:
-            summary = f"Hechos del hilo:\n{fallback_context[-6000:]}"
+            summary = f"Thread facts:\n{fallback_context[-6000:]}"
         return {
             "messages": [RemoveMessage(id=REMOVE_ALL_MESSAGES), *recent_messages],
             "summary": summary,
@@ -324,20 +282,20 @@ def build_graph(tools: list | None = None, checkpointer=None):
         }
 
     async def reason_node(state: AgentState) -> dict:
-        """Decide una sola acción ReAct o produce la respuesta final."""
+        'Choose one ReAct action or produce the final answer.'
         iteration = state.get("iterations", 0)
         max_iterations = state.get("max_iterations", DEFAULT_MAX_ITERATIONS)
         if iteration >= max_iterations:
             stop = (
-                "Detuve el ciclo porque alcancé el límite de seguridad. "
-                "Puedo intentar de nuevo o escalar el caso a un asesor."
+                "I stopped the cycle because it reached the safety limit. "
+                "I can retry or hand off the case to an advisor."
             )
             return {
                 "messages": [AIMessage(content=stop)],
                 "iterations": iteration,
                 "reasoning_trace": [
                     *state.get("reasoning_trace", []),
-                    f"[Límite] {stop} (max_iterations={max_iterations})",
+                    f"[Limit] {stop} (max_iterations={max_iterations})",
                 ],
             }
 
@@ -347,8 +305,8 @@ def build_graph(tools: list | None = None, checkpointer=None):
             _long_term_memory_message(state),
             SystemMessage(
                 content=(
-                    "Resumen de la conversación anterior: "
-                    f"{state.get('summary', '(todavía no hay resumen)')}"
+                    "Previous conversation summary: "
+                    f"{state.get('summary', '(no summary yet)')}"
                 )
             ),
             *state.get("messages", []),
@@ -360,8 +318,8 @@ def build_graph(tools: list | None = None, checkpointer=None):
             else str(response.content)
         ).strip()
         thought_only = (
-            initial_content.lower().startswith("pensamiento:")
-            and "respuesta final:" not in initial_content.lower()
+            initial_content.lower().startswith("thought:")
+            and "final answer:" not in initial_content.lower()
             and not getattr(response, "tool_calls", None)
         )
         if thought_only:
@@ -371,10 +329,10 @@ def build_graph(tools: list | None = None, checkpointer=None):
                     response,
                     SystemMessage(
                         content=(
-                            "Corrección de formato: el Pensamiento anterior declaró que "
-                            "falta información. Continúa ahora con UNA llamada estructurada "
-                            "a la herramienta necesaria. No repitas el pensamiento ni "
-                            "respondas con texto solamente."
+                            "Format correction: the previous Thought stated that "
+                            "information is missing. Continue with ONE structured call "
+                            "to the required tool. Do not repeat the thought or "
+                            "respond with text alone."
                         )
                     ),
                 ]
@@ -407,8 +365,8 @@ def build_graph(tools: list | None = None, checkpointer=None):
             if required_action is not None:
                 tool_name, tool_args = required_action
                 content = (
-                    "Pensamiento: todavía falta consultar una fuente solicitada "
-                    f"explícitamente; debo ejecutar {tool_name} antes de responder."
+                    "Thought: a requested source has not been queried yet; "
+                    f"I must call {tool_name} before answering."
                 )
                 tool_calls = [
                     {
@@ -426,23 +384,23 @@ def build_graph(tools: list | None = None, checkpointer=None):
         if tool_calls:
             call = tool_calls[0]
             trace_entry = (
-                f"[Paso {iteration + 1}] {content or 'Pensamiento: se requiere un dato verificable.'} "
-                f"→ Acción: {call['name']}({call.get('args', {})})"
+                f"[Step {iteration + 1}] {content or 'Thought: a verifiable fact is needed.'} "
+                f"→ Action: {call['name']}({call.get('args', {})})"
             )
         else:
             trace_entry = (
-                f"[Paso {iteration + 1}] "
-                f"{content or 'Respuesta final: no se generó contenido.'}"
+                f"[Step {iteration + 1}] "
+                f"{content or 'Final answer: no content was generated.'}"
             )
         from agent.review import needs_review
         requires_review = not tool_calls and needs_review(state.get('messages', []), content)
         if not tool_calls and response.response_metadata.get('done_reason') == 'length':
             from agent.review import SAFE_FAILURE
             return {'messages': [AIMessage(content=SAFE_FAILURE)], 'pending_draft': '',
-                    'review_required': False, 'review': {'status': 'fallida', 'error': 'BORRADOR_TRUNCADO'},
+                    'review_required': False, 'review': {'status': 'failed', 'error': 'DRAFT_TRUNCATED'},
                     'iterations': iteration + 1}
         if requires_review:
-            trace_entry = f"[Paso {iteration + 1}] Borrador reservado para revisión editorial."
+            trace_entry = f"[Step {iteration + 1}] Draft withheld for editorial review."
         return {
             "messages": [] if requires_review else [response],
             "pending_draft": content if requires_review else "",
@@ -458,11 +416,11 @@ def build_graph(tools: list | None = None, checkpointer=None):
     )
 
     async def act_node(state: AgentState) -> dict:
-        """Ejecuta la acción elegida y registra su observación en la traza."""
+        'Execute the selected action and record its observation.'
         result = await tool_node.ainvoke(state)
         tool_messages = list(result.get("messages", []))
         observations = [
-            f"Observación: {message.name or 'herramienta'} → {message.content}"
+            f"Observation: {message.name or 'tool'} → {message.content}"
             for message in tool_messages
         ]
         return {
@@ -490,7 +448,7 @@ def build_graph(tools: list | None = None, checkpointer=None):
         return {'messages': [AIMessage(content=answer)], 'pending_draft': '',
                 'review_required': False, 'review': review,
                 'reasoning_trace': [*state.get('reasoning_trace', []),
-                                    f"Revisión editorial: {review['status']}"]}
+                                    f"Editorial review: {review['status']}"]}
 
     graph = StateGraph(AgentState)
     graph.add_node("memoria_largo_plazo", prepare_turn)

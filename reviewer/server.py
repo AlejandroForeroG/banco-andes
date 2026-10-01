@@ -1,4 +1,4 @@
-"""Servicio SSE autenticado. Un worker conserva idempotencia durante cada plazo."""
+'Authenticated SSE service with deadline-scoped idempotency.'
 import asyncio
 import hashlib
 import json
@@ -14,10 +14,10 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 
-from agente2.critic import critique, load_sources
-from agente2.protocol import MAX_BYTES, ReviewRequest, authenticated, event, remaining, signature, wire
+from reviewer.critic import critique, load_sources
+from reviewer.protocol import MAX_BYTES, ReviewRequest, authenticated, event, remaining, signature, wire
 
-log = logging.getLogger('especialista')
+log = logging.getLogger('reviewer')
 
 
 @dataclass
@@ -35,25 +35,25 @@ jobs: dict[tuple[str, int], Job] = {}
 
 def publish(job, response):
     job.events.append(response)
-    log.warning('task_id=%s revision=%s estado=%s status=%s error=%s', response.task_id,
-                response.revision, response.estado_tarea, response.status, response.error)
+    log.warning('task_id=%s review_number=%s state=%s status=%s error=%s', response.task_id,
+                response.review_number, response.task_state, response.status, response.error)
 
 
 async def work(job, parent):
     try:
         with tracing_context(parent=parent):
-            publish(job, event(job.request, 'trabajando'))
+            publish(job, event(job.request, 'working'))
             if job.sources is None:
                 job.sources = load_sources(job.request)
             publish(job, await critique(job.request, job.sources))
     except asyncio.CancelledError:
-        publish(job, event(job.request, 'fallida', error='CANCELADA'))
+        publish(job, event(job.request, 'failed', error='CANCELLED'))
     except (TimeoutError, httpx.TimeoutException):
-        publish(job, event(job.request, 'fallida', error='PLAZO_AGOTADO'))
+        publish(job, event(job.request, 'failed', error='DEADLINE_EXCEEDED'))
     except Exception as exc:
         import sqlite3
-        code = 'FUENTE_NO_DISPONIBLE' if isinstance(exc, (sqlite3.Error, OSError)) else 'REVISION_INVALIDA'
-        publish(job, event(job.request, 'fallida', error=code))
+        code = 'SOURCE_UNAVAILABLE' if isinstance(exc, (sqlite3.Error, OSError)) else 'INVALID_REVIEW'
+        publish(job, event(job.request, 'failed', error=code))
 
 
 async def receive(request: Request):
@@ -61,19 +61,19 @@ async def receive(request: Request):
     async for chunk in request.stream():
         body += chunk
         if len(body) > MAX_BYTES:
-            return JSONResponse({'error': 'MENSAJE_DEMASIADO_GRANDE'}, status_code=413)
+            return JSONResponse({'error': 'MESSAGE_TOO_LARGE'}, status_code=413)
     purpose = 'POST ' + request.url.path
     if not authenticated(body, request.headers.get('x-review-signature', ''), purpose):
-        log.warning('rechazo=EMISOR_NO_AUTENTICADO')
-        return JSONResponse({'error': 'EMISOR_NO_AUTENTICADO'}, status_code=401)
+        log.warning('rechazo=UNAUTHENTICATED_SENDER')
+        return JSONResponse({'error': 'UNAUTHENTICATED_SENDER'}, status_code=401)
     try:
         payload = ReviewRequest.model_validate_json(body)
         if request.url.path != '/cancel' and not 0 < remaining(payload) <= float(os.getenv('REVIEW_TOTAL_SECONDS', '90')) + 2:
-            raise ValueError('PLAZO_INVALIDO')
-        key = (str(payload.task_id), payload.revision)
+            raise ValueError('INVALID_DEADLINE')
+        key = (str(payload.task_id), payload.review_number)
         digest = hashlib.sha256(wire(payload)).hexdigest()
     except (ValueError, TypeError):
-        return JSONResponse({'error': 'CONTRATO_INVALIDO'}, status_code=422)
+        return JSONResponse({'error': 'INVALID_CONTRACT'}, status_code=422)
     if request.url.path == '/cancel':
         job = jobs.get(key)
         if job and job.task and not job.task.done():
@@ -87,19 +87,19 @@ async def receive(request: Request):
     if key in jobs:
         job = jobs[key]
         if job.digest != digest:
-            return JSONResponse({'error': 'DUPLICADO_CON_CONTENIDO_DISTINTO'}, status_code=409)
+            return JSONResponse({'error': 'DUPLICATE_WITH_DIFFERENT_CONTENT'}, status_code=409)
     else:
         if len(jobs) >= 128:
-            return JSONResponse({'error': 'CAPACIDAD_AGOTADA'}, status_code=503)
-        if payload.revision == 2:
-            if (not previous or not previous.events or previous.events[-1].status != 'corregir'
+            return JSONResponse({'error': 'CAPACITY_EXCEEDED'}, status_code=503)
+        if payload.review_number == 2:
+            if (not previous or not previous.events or previous.events[-1].status != 'correct'
                     or payload.deadline_at != previous.request.deadline_at
-                    or payload.fecha != previous.request.fecha or payload.ambito != previous.request.ambito
-                    or payload.evidencias != previous.request.evidencias or payload.solicitud != previous.request.solicitud):
-                return JSONResponse({'error': 'TRANSICION_INVALIDA'}, status_code=409)
+                    or payload.case_date != previous.request.case_date or payload.scope != previous.request.scope
+                    or payload.evidence != previous.request.evidence or payload.request_text != previous.request.request_text):
+                return JSONResponse({'error': 'INVALID_TRANSITION'}, status_code=409)
         job = Job(payload, digest, sources=previous.sources if previous else None)
         jobs[key] = job
-        publish(job, event(payload, 'recibida'))
+        publish(job, event(payload, 'received'))
         parent = {k: request.headers[k] for k in ('langsmith-trace',) if k in request.headers}
         job.task = asyncio.create_task(work(job, parent))
 
@@ -112,28 +112,28 @@ async def receive(request: Request):
                 data = wire(response)
                 envelope = {'payload': response.model_dump(mode='json'), 'signature': signature(data, 'EVENT')}
                 yield b'data: ' + wire(envelope) + b'\n\n'
-                if response.estado_tarea in ('finalizada', 'fallida'):
+                if response.task_state in ('completed', 'failed'):
                     return
             if remaining(payload) <= 0:
                 job.task.cancel()
             if time.monotonic() - last >= 10:
-                publish(job, event(payload, 'trabajando'))
+                publish(job, event(payload, 'working'))
                 last = time.monotonic()
             await asyncio.sleep(0.05)
     return StreamingResponse(stream(), media_type='text/event-stream', headers={'Cache-Control': 'no-store'})
 
 
 async def health(request):
-    from agente2.consultar_fuentes import consultar, DEFAULT_DB
+    from reviewer.query_sources import consultar, DEFAULT_DB
     try:
         from datetime import date
         sources = consultar(os.getenv('POLICIES_DB', str(DEFAULT_DB)), date.today().isoformat())
-        from agente2.protocol import shared_key
+        from reviewer.protocol import shared_key
         shared_key()
-        return JSONResponse({'servicio': 'agente2', 'estado': sources['estado_fuentes'],
-                             'criterios': len(sources['criterios']), 'pid': os.getpid()})
+        return JSONResponse({'service': 'reviewer', 'state': sources['source_state'],
+                             'criteria': len(sources['criteria']), 'pid': os.getpid()})
     except Exception:
-        return JSONResponse({'error': 'FUENTE_O_CLAVE_NO_DISPONIBLE'}, status_code=503)
+        return JSONResponse({'error': 'SOURCE_OR_KEY_UNAVAILABLE'}, status_code=503)
 
 
 app = Starlette(routes=[Route('/health', health), Route('/review', receive, methods=['POST']),

@@ -1,7 +1,7 @@
 
 [banner]
 title = "Banco Andes"
-subtitle = "Asistente de Orientación Financiera Digital"
+subtitle = "Financial Guidance Assistant"
 font = "small"
 
 [colors]
@@ -13,7 +13,7 @@ warning = "yellow"
 dim     = "dim"
 
 [prompt]
-symbol = "cliente ❯ "
+symbol = "you ❯ "
 
 [display]
 show_banner     = true

@@ -8,7 +8,7 @@ async def lifespan(app: FastAPI):
     database.load_seed()
     yield
 
-app = FastAPI(title="Banco Andes — API de demostración", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Banco Andes — Demo API", version="1.0.0", lifespan=lifespan)
 
 @app.get("/health")
 async def health():

@@ -1,4 +1,4 @@
-"""Banco Andes."""
+'Capability and regression tests.'
 
 
 import uuid
@@ -18,8 +18,8 @@ class _Estado(TypedDict):
     pasos: Annotated[list, add]
 
 
-def _grafo_de_prueba(checkpointer):
-    """Grafo trivial de un nodo: solo sirve para escribir y leer checkpoints."""
+def _grafo_de_test(checkpointer):
+    'Support the associated capability or regression scenario.'
     grafo = StateGraph(_Estado)
     grafo.add_node("registrar", lambda estado: {"pasos": ["visita"]})
     grafo.add_edge(START, "registrar")
@@ -29,60 +29,60 @@ def _grafo_de_prueba(checkpointer):
 
 def test_el_checkpointer_se_construye():
     checkpointer = contract.build_checkpointer()
-    assert checkpointer is not None, "build_checkpointer() no devolvió nada"
+    assert checkpointer is not None, "build_checkpointer() returned nothing"
     assert hasattr(checkpointer, "get_tuple"), (
-        "Lo devuelto no parece un checkpointer de LangGraph. Si usó "
-        "`SqliteSaver.from_conn_string(...)`, recuerde que eso es un context "
-        "manager: hay que abrirlo y devolver el checkpointer ya construido."
+        "The result is not a LangGraph checkpointer. "
+        "SqliteSaver.from_conn_string(...) is a context manager: "
+        "enter it and return the initialized checkpointer."
     )
 
 
 def test_el_store_se_construye():
     store = contract.build_store()
-    assert store is not None, "build_store() no devolvió nada"
+    assert store is not None, "build_store() returned nothing"
 
 
 def test_un_mismo_thread_acumula_estado():
-    config = {"configurable": {"thread_id": f"prueba-{uuid.uuid4()}"}}
-    grafo = _grafo_de_prueba(contract.build_checkpointer())
+    config = {"configurable": {"thread_id": f"test-{uuid.uuid4()}"}}
+    grafo = _grafo_de_test(contract.build_checkpointer())
 
     invocar(grafo, {"pasos": []}, config)
     estado = invocar(grafo, {"pasos": []}, config)
 
     assert len(estado["pasos"]) >= 2, (
-        "Dos invocaciones sobre el mismo thread_id deben acumular estado. "
-        f"Se obtuvo: {estado['pasos']}"
+        "Two calls on the same thread_id must accumulate state. "
+        f"Received: {estado['pasos']}"
     )
 
 
 def test_threads_distintos_no_comparten_estado():
-    grafo = _grafo_de_prueba(contract.build_checkpointer())
-    config_a = {"configurable": {"thread_id": f"prueba-a-{uuid.uuid4()}"}}
-    config_b = {"configurable": {"thread_id": f"prueba-b-{uuid.uuid4()}"}}
+    grafo = _grafo_de_test(contract.build_checkpointer())
+    config_a = {"configurable": {"thread_id": f"test-a-{uuid.uuid4()}"}}
+    config_b = {"configurable": {"thread_id": f"test-b-{uuid.uuid4()}"}}
 
     invocar(grafo, {"pasos": []}, config_a)
     invocar(grafo, {"pasos": []}, config_a)
     estado_b = invocar(grafo, {"pasos": []}, config_b)
 
     assert len(estado_b["pasos"]) == 1, (
-        "Dos thread_id distintos no deben compartir historial: el thread B debería "
-        f"tener 1 solo paso y tiene {len(estado_b['pasos'])}"
+        "Different thread IDs must not share history: thread B should have "
+        f"one step but has {len(estado_b['pasos'])}"
     )
 
 
 def test_la_memoria_sobrevive_al_reinicio():
-    """test la memoria sobrevive al reinicio."""
+    'Verify this behavior with deterministic test fixtures.'
 
 
-    config = {"configurable": {"thread_id": f"prueba-disco-{uuid.uuid4()}"}}
+    config = {"configurable": {"thread_id": f"test-disco-{uuid.uuid4()}"}}
 
-    invocar(_grafo_de_prueba(contract.build_checkpointer()), {"pasos": []}, config)
+    invocar(_grafo_de_test(contract.build_checkpointer()), {"pasos": []}, config)
 
-    grafo_nuevo = _grafo_de_prueba(contract.build_checkpointer())
+    grafo_nuevo = _grafo_de_test(contract.build_checkpointer())
     recuperado = estado_de(grafo_nuevo, config)
 
     assert recuperado.values.get("pasos"), (
-        "Una instancia nueva del checkpointer no recuperó el estado. "
-        "La memoria debe persistir en disco (SqliteSaver o superior); "
-        "MemorySaver no sirve porque se pierde al reiniciar."
+        "A new checkpointer instance did not recover persisted state. "
+        "Memory must persist on disk using SqliteSaver or equivalent; "
+        "MemorySaver loses data on restart."
     )

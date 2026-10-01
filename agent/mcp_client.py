@@ -1,4 +1,4 @@
-"""Cliente MCP para descubrir las acciones remotas de Banco Andes."""
+'MCP client for discovering Banco Andes actions.'
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Banco Andes."""
+'Capability and regression tests.'
 
 
 import httpx
@@ -17,9 +17,9 @@ MCP_SCHEMA = {
     "type": "object",
     "title": "registrar_quejaArguments",
     "properties": {
-        "cliente_id": {"type": "string", "description": "Cliente que presenta la queja"},
-        "token": {"type": "string", "description": "Token de la sesión autenticada"},
-        "tipo": {"type": "string", "description": "Clasificación breve de la queja"},
+        "cliente_id": {"type": "string", "description": "Customer submitting the complaint"},
+        "token": {"type": "string", "description": "Authenticated session token"},
+        "tipo": {"type": "string", "description": "Brief complaint classification"},
     },
     "required": ["cliente_id", "token", "tipo"],
 }
@@ -62,10 +62,10 @@ def test_login_leaves_an_active_session_and_keeps_no_pin(monkeypatch):
 def test_invalid_credentials_open_no_session(monkeypatch):
     monkeypatch.setattr(
         session_mod.httpx, "post",
-        lambda *a, **k: _response(401, {"detail": "Credenciales inválidas."}),
+        lambda *a, **k: _response(401, {"detail": "Invalid credentials."}),
     )
 
-    with pytest.raises(RuntimeError, match="Credenciales inválidas"):
+    with pytest.raises(RuntimeError, match="Invalid credentials"):
         session_mod.start_session("1030555001", "0000")
 
     assert session_mod.active_session() is None
@@ -73,8 +73,8 @@ def test_invalid_credentials_open_no_session(monkeypatch):
 
 def test_private_tools_ask_the_model_for_no_credentials():
     for tool in (
-        finance_tools.consultar_perfil_financiero,
-        finance_tools.consultar_historial_solicitudes,
+        finance_tools.query_financial_profile,
+        finance_tools.query_application_history,
     ):
         assert "token" not in tool.args
         assert "cliente_id" not in tool.args
@@ -89,10 +89,10 @@ def test_model_sees_only_that_the_session_is_active(monkeypatch):
 
     content = _session_status_message().content
 
-    assert "sesión autenticada activa" in content
+    assert "authenticated session is active" in content
     assert "CLI-SECRET" not in content
     assert "tok-super-secret" not in content
-    assert "sin pedir identificación" in content
+    assert "without asking for identification" in content
 
 
 def test_model_is_told_to_use_login_when_session_is_inactive():
@@ -100,14 +100,14 @@ def test_model_is_told_to_use_login_when_session_is_inactive():
 
     content = _session_status_message().content
 
-    assert "no hay una sesión autenticada" in content
+    assert "no authenticated session is active" in content
     assert "/login" in content
-    assert "no le solicites identificación" in content
+    assert "do not request their customer ID" in content
 
 
 def test_private_tool_without_session_asks_to_authenticate():
-    with pytest.raises(RuntimeError, match="No hay una sesión autenticada"):
-        finance_tools.consultar_perfil_financiero.invoke({})
+    with pytest.raises(RuntimeError, match="No authenticated session"):
+        finance_tools.query_financial_profile.invoke({})
 
 
 def test_private_tool_queries_the_client_of_the_session(monkeypatch):
@@ -125,7 +125,7 @@ def test_private_tool_queries_the_client_of_the_session(monkeypatch):
 
     monkeypatch.setattr(finance_tools, "_api_request", api_request)
 
-    finance_tools.consultar_perfil_financiero.invoke({})
+    finance_tools.query_financial_profile.invoke({})
 
     assert call["path"] == "/finanzas/clientes/CLI-2001/perfil-financiero"
     assert call["token"] == "tok-CLI-2001"
@@ -139,8 +139,8 @@ async def test_the_mcp_client_injects_the_session_outside_the_schema(monkeypatch
         return "queja registrada"
 
     original = StructuredTool(
-        name="registrar_queja",
-        description="Registra una queja.",
+        name="register_complaint",
+        description="Record a complaint.",
         args_schema=MCP_SCHEMA,
         coroutine=call,
     )
@@ -149,7 +149,7 @@ async def test_the_mcp_client_injects_the_session_outside_the_schema(monkeypatch
 
     assert set(wrapped.args_schema["properties"]) == {"tipo"}
     assert wrapped.args_schema["required"] == ["tipo"]
-    assert MCP_SCHEMA["required"] == ["cliente_id", "token", "tipo"], "no debe mutar el original"
+    assert MCP_SCHEMA["required"] == ["cliente_id", "token", "tipo"], "must not mutate the original"
 
     monkeypatch.setattr(
         session_mod.httpx, "post",

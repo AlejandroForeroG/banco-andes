@@ -1,4 +1,4 @@
-"""Inicializa una clave aleatoria en el volumen privado, sin imprimirla."""
+'Initialize a random private signing key without printing it.'
 import os
 from pathlib import Path
 import secrets
@@ -12,4 +12,4 @@ except FileExistsError:
     pass
 os.chown(path, 10001, 10001)
 path.chmod(0o400)
-print('Identidad técnica preparada.')
+print('Service identity initialized.')

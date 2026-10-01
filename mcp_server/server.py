@@ -1,4 +1,4 @@
-"""Servidor MCP de acciones de Banco Andes."""
+'Banco Andes MCP action server.'
 
 from __future__ import annotations
 
@@ -12,10 +12,10 @@ from cli.config import get_settings
 
 
 mcp = FastMCP(
-    "banco-andes-acciones",
+    "banco-andes-actions",
     instructions=(
-        "Acciones que modifican el estado del negocio financiero. "
-        "Solo se debe confirmar una acción después de recibir una respuesta exitosa."
+        "Actions that change financial business state. "
+        "Confirm an action only after receiving a successful response."
     ),
 )
 
@@ -27,30 +27,30 @@ def _get(path: str) -> list[dict[str, Any]]:
         response.raise_for_status()
         result = response.json()
     except httpx.TimeoutException as exc:
-        raise RuntimeError("La API de Banco Andes no respondió a tiempo.") from exc
+        raise RuntimeError("The Banco Andes API timed out.") from exc
     except httpx.HTTPStatusError as exc:
         raise RuntimeError(
-            f"Banco Andes rechazó la consulta: HTTP {exc.response.status_code}"
+            f"Banco Andes rejected the query: HTTP {exc.response.status_code}"
         ) from exc
     except httpx.RequestError as exc:
-        raise RuntimeError("No fue posible conectar con la API de Banco Andes.") from exc
+        raise RuntimeError("Could not connect to the Banco Andes API.") from exc
     except ValueError as exc:
-        raise RuntimeError("Banco Andes devolvió una respuesta inválida.") from exc
+        raise RuntimeError("Banco Andes returned an invalid response.") from exc
     if not isinstance(result, list):
-        raise RuntimeError("Banco Andes devolvió un formato inesperado.")
+        raise RuntimeError("Banco Andes returned an unexpected format.")
     return result
 
 
 @mcp.tool()
-def consultar_catalogo_creditos_mcp(
+def query_credit_catalog_mcp(
     categoria: Literal[
-        "todos", "vivienda", "vehiculo", "negocio", "libre_inversion"
-    ] = "todos",
+        "all", "housing", "vehicle", "business", "personal_loan"
+    ] = "all",
 ) -> list[dict[str, Any]]:
-    """Espejo MCP del catálogo local para comparar la latencia de la misma operación."""
-    from agent.tools import filtrar_catalogo_creditos
+    'Expose the local catalog through MCP for equivalent-operation latency comparisons.'
+    from agent.tools import filter_credit_catalog
 
-    return filtrar_catalogo_creditos(_get("/finanzas/productos"), categoria)
+    return filter_credit_catalog(_get("/finanzas/productos"), categoria)
 
 
 def _post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -60,22 +60,22 @@ def _post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
         response.raise_for_status()
         result = response.json()
     except httpx.TimeoutException as exc:
-        raise RuntimeError("La API de Banco Andes no respondió a tiempo.") from exc
+        raise RuntimeError("The Banco Andes API timed out.") from exc
     except httpx.HTTPStatusError as exc:
         try:
             detail = exc.response.json().get("detail")
         except (ValueError, AttributeError):
             detail = None
         raise RuntimeError(
-            f"Banco Andes rechazó el registro: {detail or exc.response.status_code}"
+            f"Banco Andes rejected the submission: {detail or exc.response.status_code}"
         ) from exc
     except httpx.RequestError as exc:
-        raise RuntimeError("No fue posible conectar con la API de Banco Andes.") from exc
+        raise RuntimeError("Could not connect to the Banco Andes API.") from exc
     except ValueError as exc:
-        raise RuntimeError("Banco Andes devolvió una respuesta inválida.") from exc
+        raise RuntimeError("Banco Andes returned an invalid response.") from exc
 
     if not isinstance(result, dict):
-        raise RuntimeError("Banco Andes devolvió un formato inesperado.")
+        raise RuntimeError("Banco Andes returned an unexpected format.")
     return result
 
 
@@ -93,29 +93,29 @@ def _require_authenticated_client(cliente_id: str, token: str) -> None:
         )
         response.raise_for_status()
     except httpx.TimeoutException as exc:
-        raise RuntimeError("No fue posible validar la sesión a tiempo.") from exc
+        raise RuntimeError("Session validation timed out.") from exc
     except httpx.HTTPStatusError as exc:
         raise RuntimeError(
-            "La sesión no autoriza acciones sobre el cliente indicado."
+            "The session does not authorize actions for this customer."
         ) from exc
     except httpx.RequestError as exc:
-        raise RuntimeError("No fue posible validar la sesión del cliente.") from exc
+        raise RuntimeError("Could not validate the customer session.") from exc
 
 
 @mcp.tool()
-def registrar_escalamiento(
-    cliente_id: Annotated[str, Field(description="Cliente autenticado asociado al caso")],
-    token: Annotated[str, Field(description="Token de la sesión autenticada del cliente")],
-    intencion: Annotated[str, Field(description="Necesidad expresada por el cliente")],
+def register_handoff(
+    cliente_id: Annotated[str, Field(description="Authenticated customer associated with the case")],
+    token: Annotated[str, Field(description="Customer authenticated session token")],
+    intencion: Annotated[str, Field(description="Need expressed by the customer")],
     informacion_recopilada: Annotated[
-        dict[str, Any], Field(description="Datos relevantes ya recopilados")
+        dict[str, Any], Field(description="Relevant data already collected")
     ],
-    razon: Annotated[str, Field(description="Motivo concreto para requerir un asesor")],
+    razon: Annotated[str, Field(description="Specific reason for requesting an advisor")],
     solicitud_id: Annotated[
-        str | None, Field(description="Solicitud relacionada, si ya existe")
+        str | None, Field(description="Related application, if already created")
     ] = None,
 ) -> dict[str, Any]:
-    """Escala un caso no resoluble y devuelve la confirmación y tiempo estimado."""
+    'Escalate an unresolved case and return its receipt and estimated handling time.'
     _require_authenticated_client(cliente_id, token)
     return _post(
         "/finanzas/escalamientos",
@@ -130,13 +130,13 @@ def registrar_escalamiento(
 
 
 @mcp.tool()
-def registrar_queja(
-    cliente_id: Annotated[str, Field(description="Cliente que presenta la queja")],
-    token: Annotated[str, Field(description="Token de la sesión autenticada del cliente")],
-    tipo: Annotated[str, Field(description="Clasificación breve de la queja")],
-    descripcion: Annotated[str, Field(description="Descripción fiel del problema")],
+def register_complaint(
+    cliente_id: Annotated[str, Field(description="Customer submitting the complaint")],
+    token: Annotated[str, Field(description="Customer authenticated session token")],
+    tipo: Annotated[str, Field(description="Brief complaint classification")],
+    descripcion: Annotated[str, Field(description="Accurate description of the issue")],
 ) -> dict[str, Any]:
-    """Registra una queja y devuelve el canal de atención al que fue redirigida."""
+    'Record a complaint and return its destination support channel.'
     _require_authenticated_client(cliente_id, token)
     return _post(
         "/finanzas/quejas",

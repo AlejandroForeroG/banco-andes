@@ -1,4 +1,4 @@
-"""Herramientas locales de consulta para el caso Banco Andes."""
+'Local query tools for Banco Andes.'
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ def _api_request(
         payload = response.json()
     except httpx.TimeoutException as exc:
         raise RuntimeError(
-            "La API de Banco Andes no respondió a tiempo. Intente nuevamente."
+            "The Banco Andes API timed out. Please try again."
         ) from exc
     except httpx.HTTPStatusError as exc:
         detail: Any = None
@@ -55,83 +55,77 @@ def _api_request(
             detail = exc.response.json().get("detail")
         except (ValueError, AttributeError):
             pass
-        message = detail or f"respuesta HTTP {exc.response.status_code}"
-        raise RuntimeError(f"La API de Banco Andes rechazó la consulta: {message}") from exc
+        message = detail or f"HTTP response {exc.response.status_code}"
+        raise RuntimeError(f"The Banco Andes API rejected the query: {message}") from exc
     except httpx.RequestError as exc:
         raise RuntimeError(
-            "No fue posible conectar con la API de Banco Andes."
+            "Could not connect to the Banco Andes API."
         ) from exc
     except ValueError as exc:
         raise RuntimeError(
-            "La API de Banco Andes devolvió una respuesta que no es JSON válido."
+            "The Banco Andes API returned invalid JSON."
         ) from exc
 
     if not isinstance(payload, (dict, list)):
-        raise RuntimeError("La API de Banco Andes devolvió un formato inesperado.")
+        raise RuntimeError("The Banco Andes API returned an unexpected format.")
     return payload
 
 
 class VerificarClienteInput(BaseModel):
     numero_identificacion: str = Field(
-        description="Número de identificación del cliente, sin espacios ni separadores."
+        description="Customer ID without spaces or separators."
     )
 
 
-@tool("verificar_cliente", args_schema=VerificarClienteInput)
-def verificar_cliente(numero_identificacion: str) -> dict[str, bool]:
-    """Verifica públicamente una identificación cuando el usuario lo pide explícitamente.
-
-    No se usa para consultar datos privados ni como paso previo si el canal ya tiene sesión.
-    """
+@tool("verify_customer", args_schema=VerificarClienteInput)
+def verify_customer(numero_identificacion: str) -> dict[str, bool]:
+    'Publicly verify a customer ID only when explicitly requested. Do not call before private queries or when the channel already has a session.'
     payload = _api_request(
         "GET", f"/finanzas/clientes/existe/{numero_identificacion.strip()}"
     )
     if not isinstance(payload, dict) or not isinstance(payload.get("existe"), bool):
-        raise RuntimeError("La API devolvió un resultado inesperado al verificar el cliente.")
+        raise RuntimeError("The API returned an unexpected customer verification result.")
     return {"existe": payload["existe"]}
 
 
 class CatalogoCreditosInput(BaseModel):
-    categoria: Literal["todos", "vivienda", "vehiculo", "negocio", "libre_inversion"] = Field(
-        default="todos",
-        description="Categoría ya inferida de la necesidad del cliente; use 'todos' si no es clara.",
+    categoria: Literal["all", "housing", "vehicle", "business", "personal_loan"] = Field(
+        default="all",
+        description="Category inferred from the customer need; use 'all' when unclear.",
     )
 
 
-def filtrar_catalogo_creditos(
+def filter_credit_catalog(
     payload: list[dict[str, Any]],
-    categoria: Literal["todos", "vivienda", "vehiculo", "negocio", "libre_inversion"],
+    categoria: Literal["all", "housing", "vehicle", "business", "personal_loan"],
 ) -> list[dict[str, Any]]:
-    """Aplica el mismo filtro tanto a la tool local como a su espejo MCP."""
+    'Apply the same category filter to local and MCP catalog tools.'
     product_ids = {
-        "todos": None,
-        "vivienda": {"PRD-HIP", "PRD-LEA", "PRD-CON"},
-        "vehiculo": {"PRD-VEH"},
-        "negocio": {"PRD-PYM", "PRD-LIB"},
-        "libre_inversion": {"PRD-LIB"},
+        "all": None,
+        "housing": {"PRD-HIP", "PRD-LEA", "PRD-CON"},
+        "vehicle": {"PRD-VEH"},
+        "business": {"PRD-PYM", "PRD-LIB"},
+        "personal_loan": {"PRD-LIB"},
     }[categoria]
     if product_ids is None:
         return payload
     return [product for product in payload if product.get("id") in product_ids]
 
 
-@tool("consultar_catalogo_creditos", args_schema=CatalogoCreditosInput)
-def consultar_catalogo_creditos(
-    categoria: Literal["todos", "vivienda", "vehiculo", "negocio", "libre_inversion"] = "todos",
+@tool("query_credit_catalog", args_schema=CatalogoCreditosInput)
+def query_credit_catalog(
+    categoria: Literal["all", "housing", "vehicle", "business", "personal_loan"] = "all",
 ) -> list[dict[str, Any]]:
-    """Consulta productos, montos, plazos, tasas y requisitos públicos por categoría."""
+    'Query public products, amounts, terms, rates, and requirements by category.'
     payload = _api_request("GET", "/finanzas/productos")
     if not isinstance(payload, list):
-        raise RuntimeError("La API devolvió un catálogo de productos inesperado.")
-    return filtrar_catalogo_creditos(payload, categoria)
+        raise RuntimeError("The API returned an unexpected product catalog.")
+    return filter_credit_catalog(payload, categoria)
 
 
-@tool("consultar_perfil_financiero")
-def consultar_perfil_financiero() -> dict[str, Any]:
-    """Consulta score, ingresos, endeudamiento y productos activos del cliente autenticado.
-
-    No recibe parámetros: opera sobre la sesión vigente del canal.
-    """
+@tool("query_financial_profile")
+def query_financial_profile() -> dict[str, Any]:
+    'Query the authenticated customer score, income, debt, and active products. Takes no arguments; uses the active channel session.'
     session = required_session()
     payload = _api_request(
         "GET",
@@ -139,16 +133,13 @@ def consultar_perfil_financiero() -> dict[str, Any]:
         token=session.token,
     )
     if not isinstance(payload, dict):
-        raise RuntimeError("La API devolvió un perfil financiero inesperado.")
+        raise RuntimeError("The API returned an unexpected financial profile.")
     return payload
 
 
-@tool("consultar_historial_solicitudes")
-def consultar_historial_solicitudes() -> list[dict[str, Any]]:
-    """Consulta las solicitudes de crédito anteriores del cliente autenticado.
-
-    No recibe parámetros: opera sobre la sesión vigente del canal.
-    """
+@tool("query_application_history")
+def query_application_history() -> list[dict[str, Any]]:
+    'Query past loan applications for the authenticated customer. Takes no arguments; uses the active channel session.'
     session = required_session()
     payload = _api_request(
         "GET",
@@ -156,7 +147,7 @@ def consultar_historial_solicitudes() -> list[dict[str, Any]]:
         token=session.token,
     )
     if not isinstance(payload, list):
-        raise RuntimeError("La API devolvió un historial de solicitudes inesperado.")
+        raise RuntimeError("The API returned an unexpected application history.")
     return payload
 
 
@@ -173,38 +164,33 @@ class RecordarPreferenciaInput(BaseModel):
         "hito_gestion",
     ] = Field(
         description=(
-            "Tipo de preferencia estable o hito confirmado que debe recordarse. No use "
-            "esta tool para ingresos, score, deudas, claves, tokens ni números de cuenta."
+            "Stable preference type or confirmed milestone to remember. Do not use "
+            "this tool for income, scores, debts, PINs, tokens, or account numbers."
         )
     )
     valor: str = Field(
         min_length=1,
         max_length=300,
         description=(
-            "Preferencia explícita del cliente en forma breve y sin ambigüedad. Para "
-            "montos use el valor normalizado en COP y su periodicidad si fue indicada: "
-            "'millón quinientos' equivale a '1.500.000 COP', no a '500 millones'. "
-            "No invoque la tool hasta aclarar un monto que admita varias interpretaciones."
+            "Explicit customer preference stated briefly and unambiguously. Normalize "
+            "amounts in COP and include the stated payment period: "
+            "one million five hundred thousand means 1.500.000 COP, never 500 million COP. "
+            "Do not call the tool before clarifying an ambiguous amount."
         ),
     )
 
 
-@tool("recordar_preferencia_financiera", args_schema=RecordarPreferenciaInput)
-def recordar_preferencia_financiera(tipo: str, valor: str) -> dict[str, Any]:
-    """Guarda una preferencia financiera estable para conversaciones futuras.
-
-    Úsala cuando el cliente autenticado exprese explícitamente algo que desea
-    conservar, o cuando otra tool confirme un hito como un escalamiento. Los
-    datos financieros variables se consultan siempre en la API empresarial.
-    """
+@tool("remember_financial_preference", args_schema=RecordarPreferenciaInput)
+def remember_financial_preference(tipo: str, valor: str) -> dict[str, Any]:
+    'Save a stable financial preference for future conversations. Use only for explicit customer requests or tool-confirmed milestones. Query changing financial data through the business API.'
     session = required_session()
     profile = save_client_memory(session.client_id, tipo, valor)
     return {"guardado": True, "tipo": tipo, "valor": profile[tipo]}
 
 
-@tool("consultar_memoria_financiera")
-def consultar_memoria_financiera() -> dict[str, str]:
-    """Recupera objetivos y preferencias recordados del cliente autenticado."""
+@tool("query_financial_memory")
+def query_financial_memory() -> dict[str, str]:
+    'Retrieve remembered goals and preferences for the authenticated customer.'
     session = required_session()
     return load_client_memory(session.client_id)
 
@@ -212,13 +198,13 @@ def consultar_memoria_financiera() -> dict[str, str]:
 def get_local_tools() -> list:
     """Return the read-only tools available without starting the MCP server."""
     return [
-        verificar_cliente,
-        consultar_catalogo_creditos,
-        consultar_perfil_financiero,
-        consultar_historial_solicitudes,
+        verify_customer,
+        query_credit_catalog,
+        query_financial_profile,
+        query_application_history,
     ]
 
 
 def get_memory_tools() -> list:
     """get memory tools."""
-    return [recordar_preferencia_financiera, consultar_memoria_financiera]
+    return [remember_financial_preference, query_financial_memory]

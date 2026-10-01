@@ -1,4 +1,4 @@
-"""Banco Andes."""
+'Capability and regression tests.'
 
 
 import os
@@ -10,7 +10,7 @@ from tests.utiles import nombres_de_decoradores
 pytestmark = pytest.mark.observability
 requires_langsmith = pytest.mark.skipif(
     os.getenv("RUN_LANGSMITH_EVAL") != "1",
-    reason="Integración optativa: RUN_LANGSMITH_EVAL=1",
+    reason="Optional integration: RUN_LANGSMITH_EVAL=1",
 )
 
 
@@ -32,9 +32,9 @@ def _primera(variables):
 @requires_langsmith
 def test_api_key_configurada():
     assert _primera(_VARIABLES_API_KEY), (
-        "Falta la credencial de LangSmith.\n"
-        "En GitHub: Settings → Secrets and variables → Actions → New repository secret,\n"
-        "con el nombre LANGCHAIN_API_KEY y una clave propia de LangSmith."
+        "Missing LangSmith API key.\n"
+        "GitHub: Settings → Secrets and variables → Actions → New repository secret,\n"
+        "named LANGCHAIN_API_KEY with your own LangSmith API key."
     )
 
 
@@ -42,19 +42,19 @@ def test_api_key_configurada():
 def test_proyecto_configurado():
     proyecto = _primera(_VARIABLES_PROYECTO)
     assert proyecto, (
-        "Falta el nombre del proyecto de LangSmith.\n"
-        "En GitHub: Settings → Secrets and variables → Actions → pestaña Variables →\n"
-        "New repository variable, con el nombre LANGCHAIN_PROJECT y el valor\n"
+        "Missing LangSmith project name.\n"
+        "GitHub: Settings → Secrets and variables → Actions → Variables →\n"
+        "New repository variable, named LANGCHAIN_PROJECT with value\n"
         "banco-andes."
     )
     assert proyecto.strip() == proyecto and " " not in proyecto, (
-        f"El nombre del proyecto no debe tener espacios: {proyecto!r}"
+        f"The project name must not contain spaces: {proyecto!r}"
     )
 
 
 @requires_langsmith
 def test_la_credencial_es_valida():
-    """test la credencial es valida."""
+    'Verify this behavior with deterministic test fixtures.'
 
 
     from langsmith import Client
@@ -66,23 +66,19 @@ def test_la_credencial_es_valida():
         texto = str(exc)
         if any(codigo in texto for codigo in ("401", "403", "Unauthorized", "Forbidden")):
             pytest.fail(
-                "LangSmith rechazó la credencial. Verifique que el secret "
-                "LANGCHAIN_API_KEY tenga la llave correcta y completa "
-                f"(sin espacios ni comillas).\nDetalle: {texto}"
+                "LangSmith rejected the credential. Check that "
+                "LANGCHAIN_API_KEY contains the complete, correct key "
+                f"(without spaces or quotes).\nDetails: {texto}"
             )
-        pytest.skip(f"LangSmith no respondió; no es un problema del proyecto. Detalle: {texto}")
+        pytest.skip(f"LangSmith did not respond. Details: {texto}")
 
 
 def test_hay_instrumentacion_propia():
-    """Debe existir al menos una función propia decorada para trazar.
-
-    Se inspecciona el árbol sintáctico, no el texto: mencionar `@traceable` en
-    un comentario o en un docstring no cuenta.
-    """
+    'Verify this behavior with deterministic test fixtures.'
     decoradores = nombres_de_decoradores()
     assert decoradores & DECORADORES_DE_TRAZA, (
-        "No se encontró ninguna función decorada con @traceable .\n"
-        "Instrumente al menos una función propia del proyecto — por ejemplo, la que "
-        "prepara el contexto o la que decide la herramienta.\n"
-        f"Decoradores encontrados en el proyecto: {sorted(decoradores) or 'ninguno'}"
+        "No function decorated with @traceable was found.\n"
+        "Instrument at least one project function, such as the one that "
+        "prepares context or chooses a tool.\n"
+        f"Decorators found in the project: {sorted(decoradores) or 'ninguno'}"
     )

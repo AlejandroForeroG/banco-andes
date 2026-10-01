@@ -1,4 +1,4 @@
-"""Configuracion y sanitizacion compartidas para las trazas de LangSmith."""
+'Shared LangSmith trace configuration and redaction.'
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def _enabled(value: str | None) -> bool:
 
 
 def tracing_activo() -> bool:
-    """Acepta los nombres historicos y actuales de variables de LangSmith."""
+    'Support historical and current LangSmith environment variable names.'
     enabled = _enabled(
         os.getenv("LANGSMITH_TRACING") or os.getenv("LANGCHAIN_TRACING_V2")
     )
@@ -37,7 +37,7 @@ def proyecto_langsmith() -> str:
 
 
 def redactar_datos(value: Any, field_name: str = "") -> Any:
-    """Redacta secretos por nombre de campo sin alterar el objeto original."""
+    'Redact secrets by field name without modifying the original object.'
     normalized = field_name.lower().replace("-", "_")
     if normalized in SENSITIVE_FIELDS or normalized.endswith("_token"):
         return "***"
@@ -51,12 +51,12 @@ def redactar_datos(value: Any, field_name: str = "") -> Any:
 
 
 def sanitizar_traza(payload: Any) -> Any:
-    """Callback compatible con process_inputs/process_outputs de @traceable."""
+    'Provide a process_inputs/process_outputs callback for @traceable.'
     return redactar_datos(payload)
 
 
 def trazable(name: str | None = None, run_type: str = "chain") -> Callable:
-    """Envoltorio para instrumentar funciones propias con redaccion."""
+    'Instrument functions with secret-redacting tracing.'
 
     def decorator(func: Callable) -> Callable:
         from langsmith import traceable

@@ -1,4 +1,4 @@
-"""Banco Andes."""
+'Capability and regression tests.'
 
 
 from pathlib import Path
@@ -14,40 +14,36 @@ RAIZ = Path(__file__).resolve().parent.parent
 
 
 def test_el_cli_arranca():
-    resultado = CliRunner().invoke(contract.get_cli(), ["--help"])
-    assert resultado.exit_code == 0, (
-        "El CLI del proyecto debe responder a --help sin error.\n"
-        f"Salida:\n{resultado.output}\n{resultado.exception}"
+    result = CliRunner().invoke(contract.get_cli(), ["--help"])
+    assert result.exit_code == 0, (
+        "The CLI must respond to --help without errors.\n"
+        f"Output:\n{result.output}\n{result.exception}"
     )
-    assert resultado.output.strip(), "El CLI no imprimió nada con --help"
+    assert result.output.strip(), "The CLI printed no output for --help"
 
 
 def test_el_cli_expone_comandos():
-    """test el cli expone comandos."""
+    'Verify this behavior with deterministic test fixtures.'
     cli = contract.get_cli()
     comandos = getattr(cli, "commands", None)
-    assert comandos, "El CLI debe exponer al menos un subcomando (por ejemplo, `chat`)"
+    assert comandos, "The CLI must expose at least one subcommand, such as chat"
 
 
 def test_configuracion_disponible():
     settings = contract.get_settings()
-    assert settings.ollama_model, "Falta el modelo de Ollama en la configuración"
+    assert settings.ollama_model, "Missing Ollama model setting"
     assert str(settings.api_base_url).startswith("http"), (
-        "`api_base_url` debe ser una URL (viene de la variable de entorno API_BASE_URL)"
+        "api_base_url must be a URL configured through API_BASE_URL"
     )
-    caso = str(settings.caso_negocio or "")
+    caso = str(settings.business_domain or "")
     assert caso.strip(), (
-        "Falta `caso_negocio`: identifica el dominio configurado "
-        "(viene de la variable de entorno CASO_NEGOCIO)"
+        "Missing business_domain: it identifies the configured domain "
+        "(configured through BUSINESS_DOMAIN)"
     )
 
 
 def test_configuracion_por_defecto_sin_env():
-    """El proyecto debe funcionar sin `.env` presente.
-
-    En GitHub Actions no existe `.env` (es un archivo de secretos, no se sube).
-    Si la configuración no trae valores por defecto, todo el pipeline falla.
-    """
+    'Verify this behavior with deterministic test fixtures.'
     settings = contract.get_settings()
     assert settings is not None
 
@@ -55,8 +51,8 @@ def test_configuracion_por_defecto_sin_env():
 def test_secretos_protegidos():
     gitignore = (RAIZ / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert ".env" in [linea.strip() for linea in gitignore], (
-        ".env debe estar listado en .gitignore: nunca se suben credenciales al repositorio"
+        ".env must be listed in .gitignore: never commit credentials"
     )
     assert (RAIZ / ".env.example").exists(), (
-        "Falta .env.example — es la plantilla que documenta qué variables hacen falta"
+        "Missing .env.example configuration template"
     )

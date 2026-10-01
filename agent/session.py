@@ -1,4 +1,4 @@
-"""Sesión autenticada del canal digital, fuera del alcance del agente."""
+'Authenticated channel session kept outside model control.'
 
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ from cli.config import get_settings
 LOGIN_TIMEOUT_SECONDS = 8.0
 
 NO_SESSION = (
-    "No hay una sesión autenticada y el dato es privado. Pida al cliente que "
-    "inicie sesión en el canal con /login antes de continuar."
+    "No authenticated session is available and the data is private. Ask the customer to "
+    "sign in through the channel with /login before continuing."
 )
 
 
@@ -27,7 +27,7 @@ _session: Session | None = None
 
 
 def start_session(identification_number: str, pin: str) -> Session:
-    """Cambia identificación y clave por un token, y deja la sesión activa."""
+    'Exchange customer ID and PIN for a token and activate the session.'
     base_url = get_settings().api_base_url.rstrip("/")
     try:
         response = httpx.post(
@@ -42,28 +42,28 @@ def start_session(identification_number: str, pin: str) -> Session:
         payload = response.json()
     except httpx.TimeoutException as exc:
         raise RuntimeError(
-            "La API de Banco Andes no respondió a tiempo al autenticar."
+            "The Banco Andes API timed out during authentication."
         ) from exc
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code == 401:
             raise RuntimeError(
-                "Credenciales inválidas: revise la identificación y la clave."
+                "Invalid credentials: check the customer ID and PIN."
             ) from exc
         raise RuntimeError(
-            f"La API de Banco Andes rechazó la autenticación "
+            f"The Banco Andes API rejected authentication "
             f"(HTTP {exc.response.status_code})."
         ) from exc
     except httpx.RequestError as exc:
         raise RuntimeError(
-            "No fue posible conectar con la API de Banco Andes para autenticar."
+            "Could not connect to the Banco Andes API for authentication."
         ) from exc
     except ValueError as exc:
         raise RuntimeError(
-            "La API de Banco Andes devolvió una respuesta de login que no es JSON."
+            "The Banco Andes API returned a non-JSON login response."
         ) from exc
 
     if not isinstance(payload, dict) or not payload.get("token") or not payload.get("cliente_id"):
-        raise RuntimeError("La API de Banco Andes devolvió una sesión incompleta.")
+        raise RuntimeError("The Banco Andes API returned an incomplete session.")
 
     global _session
     _session = Session(client_id=str(payload["cliente_id"]), token=str(payload["token"]))
@@ -80,7 +80,7 @@ def active_session() -> Session | None:
 
 
 def required_session() -> Session:
-    """Sesión vigente, o un error accionable si no hay ninguna."""
+    'Return the active session or raise an actionable error.'
     if _session is None:
         raise RuntimeError(NO_SESSION)
     return _session

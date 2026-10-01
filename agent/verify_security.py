@@ -1,4 +1,4 @@
-"""Prueba real del canal: rechaza un emisor sin firma antes de consultar SQLite."""
+'Live unsigned-sender rejection check before SQLite access.'
 import asyncio
 from datetime import datetime, timedelta, timezone
 import json
@@ -8,7 +8,7 @@ from uuid import uuid4
 import httpx
 from langsmith import traceable
 
-from agente2.protocol import ReviewRequest, wire
+from reviewer.protocol import ReviewRequest, wire
 from cli.config import get_settings
 
 
@@ -16,13 +16,13 @@ from cli.config import get_settings
 async def verify():
     get_settings()
     now = datetime.now(timezone.utc)
-    request = ReviewRequest(task_id=uuid4(), protocol_version='1.0', fecha=now.date(), ambito='vivienda', revision=1,
-                            deadline_at=now+timedelta(seconds=40), solicitud='Consulta de demostración',
-                            borrador='Producto pendiente de revisión.', evidencias=[])
+    request = ReviewRequest(task_id=uuid4(), protocol_version='1.0', case_date=now.date(), scope='housing', review_number=1,
+                            deadline_at=now+timedelta(seconds=40), request_text='Demo query',
+                            draft='Product awaiting review.', evidence=[])
     async with httpx.AsyncClient(timeout=5) as client:
         result = await client.post(os.environ['REVIEW_URL'].rstrip('/') + '/review', content=wire(request))
-    assert result.status_code == 401, f'Se esperaba HTTP 401, llegó {result.status_code}'
-    assert result.json() == {'error': 'EMISOR_NO_AUTENTICADO'}
+    assert result.status_code == 401, f'Expected HTTP 401, received {result.status_code}'
+    assert result.json() == {'error': 'UNAUTHENTICATED_SENDER'}
     return {'task_id': str(request.task_id), 'http_status': result.status_code, **result.json()}
 
 

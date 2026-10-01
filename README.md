@@ -1,79 +1,79 @@
 # Banco Andes
 
-Asistente de orientación financiera con un modelo local, memoria persistente y un segundo agente que revisa cada respuesta antes de mostrarla. Mantenido por [Juan Alejandro Forero Gómez](https://www.linkedin.com/in/alejandroforerog).
+A financial guidance assistant with a local model, persistent memory, and an independent agent that reviews answers before they reach the user. Maintained by [Juan Alejandro Forero Gómez](https://www.linkedin.com/in/alejandroforerog).
 
-## Capacidades
+## Features
 
-- Consulta de perfil, historial y catálogo mediante herramientas autenticadas.
-- Conversaciones persistentes en SQLite y preferencias aisladas por cliente.
-- Razonamiento ReAct con un límite de iteraciones.
-- Revisión independiente contra políticas versionadas: validar, corregir o declarar información insuficiente.
-- Transferencia a un asesor mediante MCP, con consentimiento y confirmación del radicado.
-- Trazas opcionales en LangSmith con redacción de secretos.
+- Authenticated tools for financial profiles, application history, and the product catalog.
+- SQLite conversation persistence and customer-specific preferences.
+- ReAct reasoning with an explicit iteration limit.
+- Independent review against versioned policies: validate, correct, or report insufficient information.
+- Advisor handoff through MCP, with consent and a confirmed receipt.
+- Optional LangSmith traces with secret redaction.
 
-El proyecto utiliza clientes, productos y políticas sintéticos. La revisión es editorial: no aprueba créditos. La API incluida es una demostración local con autenticación simulada y datos en memoria; sus cambios se pierden al reiniciar. La atención del asesor después de recibir el radicado queda fuera del prototipo.
+Customers, products, and policies are synthetic. Review is editorial and does not approve loans. The bundled API is a local demo with simulated authentication and in-memory data; changes are lost on restart. Advisor handling after receipt is outside the prototype's scope.
 
-## Ejecutar con Docker
+## Run with Docker
 
-Requiere Docker Compose y Ollama en el anfitrión. Descarga el modelo y arranca los servicios:
+Install Docker Compose and run Ollama on the host. Download the model and start the services:
 
 ```bash
 ollama pull qwen3:4b-instruct-2507-q8_0
 docker compose up --build -d
-docker compose exec agente agente chat
+docker compose exec assistant bank-agent chat
 ```
 
-Compose construye la API de demostración, el orientador y el revisor desde este repositorio. Genera una clave compartida para firmar los intercambios y monta la base de políticas. No requiere RAG externo ni credenciales para ejecutar la orientación.
+Compose builds the demo API, assistant, and reviewer from this repository. It creates a shared signing key and initializes the policy database. Financial guidance does not require an external RAG service or credentials.
 
-En el chat, usa `/login` con la identificación `DEMO-01` y la clave `2001`. Los demás clientes sintéticos están en `demo-api/app/data/finanzas.json`. Consulta el catálogo o pide orientación y escribe `Quiero hablar con un asesor` para iniciar la transferencia. `/ayuda` muestra los comandos.
+In chat, use `/login` with customer ID `DEMO-01` and PIN `2001`. Other synthetic customers are in `demo-api/app/data/finanzas.json`. Ask about the catalog or request guidance, then say `I want to speak to an advisor` to start a handoff. `/help` lists the commands.
 
 ```bash
 docker compose ps
-docker compose exec -T agente python -m agent.verify_security
+docker compose exec -T assistant python -m agent.verify_security
 docker compose down
 ```
 
-`down` conserva la memoria; `down -v` la elimina. Los servicios se comunican sin publicar puertos. Para cambiar el modelo, copia `.env.example` a `.env` y modifica `OLLAMA_MODEL`.
+`down` preserves memory; `down -v` deletes it. Services communicate without publishing host ports. To change the model, copy `.env.example` to `.env` and edit `OLLAMA_MODEL`.
 
-## Desarrollo local
+## Local development
 
-Con Python 3.11 o superior, desde la raíz:
+With Python 3.11 or later, from the repository root:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e .
 Copy-Item .env.example .env
-python -m agente2.montar_fuentes
-agente herramientas --sin-mcp
+python -m reviewer.init_sources
+bank-agent tools --no-mcp
 ```
 
-Para el flujo completo usa Compose. La instalación local permite trabajar en módulos y ejecutar pruebas; no inicia la API ni el revisor automáticamente.
+Use Compose for the complete flow. A local installation supports module development and tests; it does not automatically start the API or reviewer.
 
-## Diseño
+## Design
 
-El CLI abre una sesión y pasa la consulta al grafo de LangGraph. El orientador consulta herramientas locales y MCP, incorpora la memoria del cliente y prepara una respuesta. El revisor recupera criterios de su propia SQLite mediante consultas de solo lectura y devuelve un dictamen firmado. El orientador comprueba firma, correlación, cobertura y presupuesto antes de aceptar el texto. El ciclo admite dos críticas y un refinamiento; si falta evidencia o falla la revisión, comunica el límite.
+The CLI opens a session and sends the query to a LangGraph graph. The assistant calls local and MCP tools, loads customer memory, and drafts an answer. The reviewer retrieves criteria from its own SQLite database through read-only queries and returns a signed verdict. The assistant verifies the signature, correlation, coverage, and time budget before accepting the text. The cycle allows two critiques and one refinement; missing evidence or failed review produces a clear limitation.
 
-| Carpeta | Función |
+| Directory | Purpose |
 | --- | --- |
-| `cli/` | Comandos, sesión y presentación en terminal |
-| `agent/` | Grafo, herramientas, memoria y revisión |
-| `agente2/` | Servicio revisor, protocolo y políticas versionadas |
-| `mcp_server/` | Herramientas de acciones y transferencia |
-| `demo-api/` | API local del dominio financiero |
-| `observability/` | Instrumentación y redacción de secretos |
-| `tests/` | Pruebas por capacidad |
+| `cli/` | Commands, sessions, and terminal presentation |
+| `agent/` | Graph, tools, memory, and review gate |
+| `reviewer/` | Reviewer service, protocol, and versioned policies |
+| `mcp_server/` | Action and handoff tools |
+| `demo-api/` | Local financial domain API |
+| `observability/` | Instrumentation and secret redaction |
+| `tests/` | Capability tests |
 
-El banner ASCII y los colores de Banco Andes se configuran en `cli_design.toml`.
+Configure the Banco Andes ASCII banner and colors in `cli_design.toml`. The brand name and canonical business API identifiers retain their original spelling; documentation and user-facing content are in English.
 
-## Pruebas
+## Tests
 
 ```bash
 python -m pytest -q
-python -m unittest agente2.test_fuentes -v
+python -m unittest reviewer.test_sources -v
 ```
 
-La suite ordinaria usa dobles de prueba y no requiere Ollama ni LangSmith. Las evaluaciones con servicios externos se habilitan explícitamente:
+The default suite uses test doubles and does not require Ollama or LangSmith. Enable external evaluations explicitly:
 
 ```powershell
 $env:RUN_OLLAMA_EVAL='1'
@@ -82,15 +82,15 @@ $env:RUN_LANGSMITH_EVAL='1'
 python -m pytest tests/test_observability.py -q
 ```
 
-La segunda requiere clave y proyecto de LangSmith en el entorno. Las pruebas de contrato no demuestran por sí solas la calidad de las respuestas del modelo.
+The second evaluation requires a LangSmith API key and project in the environment. Contract tests alone do not establish the quality of model responses.
 
-## Subir a tu cuenta
+## Publish to your account
 
-Crea un repositorio vacío llamado `banco-andes` en tu cuenta y ejecuta desde esta carpeta:
+Create an empty repository named `banco-andes` in your account, then run from this directory:
 
 ```bash
-git remote add origin https://github.com/TU_USUARIO/banco-andes.git
+git remote add origin https://github.com/YOUR_USERNAME/banco-andes.git
 git push -u origin main
 ```
 
-La copia tiene su propio historial y no modifica el repositorio original. Consulta los [créditos](NOTICE.md).
+This copy has its own history and does not modify the original repository. See [credits](NOTICE.md).

@@ -1,4 +1,4 @@
-"""Banco Andes."""
+'Capability and regression tests.'
 
 
 import ast
@@ -16,7 +16,7 @@ _IGNORADAS = {
 
 
 def archivos_del_proyecto():
-    """archivos del proyecto."""
+    'List project source files.'
     for ruta in RAIZ.rglob("*.py"):
         if any(parte in _IGNORADAS or parte.endswith(".egg-info") for parte in ruta.parts):
             continue
@@ -32,11 +32,7 @@ def _arboles():
 
 
 def nombres_de_decoradores():
-    """Decoradores realmente aplicados a funciones del proyecto.
-
-    Se usa AST y no `grep` a propósito: buscar texto encuentra la palabra en
-    comentarios y docstrings, y daría por bueno un proyecto sin instrumentar.
-    """
+    'Inspect applied function decorators through AST rather than text matching.'
     encontrados = set()
     for _, arbol in _arboles():
         for nodo in ast.walk(arbol):
@@ -52,11 +48,7 @@ def nombres_de_decoradores():
 
 
 def identificadores_del_proyecto():
-    """Identificadores usados en el CÓDIGO (variables, parámetros, atributos).
-
-    No incluye texto de docstrings ni de comentarios, para que la prueba no se
-    pueda aprobar escribiendo el nombre en un comentario.
-    """
+    'Inspect code identifiers without counting comments or docstrings.'
     encontrados = set()
     for _, arbol in _arboles():
         for nodo in ast.walk(arbol):
@@ -72,12 +64,12 @@ def identificadores_del_proyecto():
 
 
 def nombres_de_nodos(grafo_compilado):
-    """Nombres de los nodos de un grafo de LangGraph ya compilado, en minúscula."""
+    'Return lowercase node names from a compiled LangGraph graph.'
     return {str(n).lower() for n in grafo_compilado.get_graph().nodes}
 
 
 def invocar(grafo, entrada, config):
-    """invocar."""
+    'Invoke the graph.'
 
 
     try:
@@ -89,7 +81,7 @@ def invocar(grafo, entrada, config):
 
 
 def estado_de(grafo, config):
-    """Lee el estado persistido de un thread, en sync o en async."""
+    'Support the associated capability or regression scenario.'
     try:
         return grafo.get_state(config)
     except NotImplementedError:

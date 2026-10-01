@@ -66,7 +66,7 @@ def load_client_memory(client_id: str) -> dict[str, str]:
 
 def save_client_memory(client_id: str, field: str, value: str) -> dict[str, str]:
     if field not in ALLOWED_MEMORY_FIELDS:
-        raise ValueError(f"Tipo de memoria no permitido: {field}")
+        raise ValueError(f"Unsupported memory type: {field}")
     profile = load_client_memory(client_id)
     profile[field] = value.strip()
     get_store().put(_namespace(client_id), PROFILE_KEY, profile)

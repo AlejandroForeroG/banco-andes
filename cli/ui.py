@@ -1,4 +1,4 @@
-"""Banco Andes."""
+'Banco Andes.'
 
 
 import json
@@ -35,20 +35,20 @@ DEFAULTS = {
         "warning": "yellow",
         "dim": "dim",
     },
-    "prompt": {"symbol": "tú ❯ "},
-    "display": {"show_banner": True, "show_tool_calls": True, "agent_title": "agente"},
+    "prompt": {"symbol": "you ❯ "},
+    "display": {"show_banner": True, "show_tool_calls": True, "agent_title": "assistant"},
 }
 
 
 @lru_cache
 def design() -> dict:
-    """Carga cli_design.toml fusionado sobre los valores por defecto."""
+    'Merge cli_design.toml over default styling.'
     config = {seccion: dict(valores) for seccion, valores in DEFAULTS.items()}
     if DESIGN_PATH.exists():
         try:
             usuario = tomllib.loads(DESIGN_PATH.read_text(encoding="utf-8"))
         except tomllib.TOMLDecodeError as exc:
-            console.print(f"[yellow]⚠ cli_design.toml inválido ({exc}); usando diseño por defecto.[/yellow]")
+            console.print(f"[yellow]⚠ Invalid cli_design.toml ({exc}); using default styling.[/yellow]")
             return config
         for seccion, valores in usuario.items():
             if seccion in config and isinstance(valores, dict):
@@ -71,9 +71,9 @@ def banner(settings) -> None:
         Panel.fit(
             f"[bold {colores['primary']}]{ascii_art}[/bold {colores['primary']}]"
             f"{subtitulo}\n"
-            f"Dominio: [bold]{settings.caso_negocio}[/bold] · "
-            f"Modelo: [bold]{settings.ollama_model}[/bold]\n"
-            f"[{colores['dim']}]/ayuda para comandos · /salir para terminar[/{colores['dim']}]",
+            f"Domain: [bold]{settings.business_domain}[/bold] · "
+            f"Model: [bold]{settings.ollama_model}[/bold]\n"
+            f"[{colores['dim']}]/help for commands · /exit to quit[/{colores['dim']}]",
             border_style=colores["accent"],
         )
     )

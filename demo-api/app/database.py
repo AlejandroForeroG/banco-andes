@@ -1,4 +1,4 @@
-"""Banco Andes."""
+'Banco Andes.'
 
 
 import json
@@ -20,7 +20,7 @@ def reset() -> None:
 
 
 def next_id(items: list[dict], prefix: str) -> str:
-    """Genera un id consecutivo tipo PREFIX-001 sobre una colección."""
+    'Generate the next collection identifier in PREFIX-001 format.'
     numbers = []
     for item in items:
         try:

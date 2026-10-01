@@ -1,9 +1,4 @@
-"""Dominio Banco Andes — orientación de crédito digital.
-
-Regla del caso de negocio: los datos financieros de un cliente solo pueden
-consultarse tras autenticación. El login retorna un bearer token acotado al
-cliente autenticado.
-"""
+'Banco Andes demo credit guidance API. Private financial data requires customer-scoped authentication.'
 
 from datetime import datetime, timezone
 
@@ -24,13 +19,13 @@ def _find(items: list[dict], item_id: str) -> dict | None:
 
 
 def _require_bearer(cliente_id: str, authorization: str | None) -> None:
-    """El token emitido por /auth/login es 'tok-{cliente_id}'."""
+    'Validate the demo bearer token issued by /auth/login.'
     esperado = f"Bearer tok-{cliente_id}"
     if authorization != esperado:
         raise HTTPException(
             401,
-            "Datos financieros protegidos: autentíquese primero con POST /finanzas/auth/login "
-            "y envíe el token en el header Authorization.",
+            "Protected financial data: authenticate with POST /finanzas/auth/login "
+            "and send the token in the Authorization header.",
         )
 
 
@@ -45,31 +40,27 @@ def _find_por_cedula(items: list[dict], numero_identificacion: str) -> dict | No
 
 @router.get("/clientes/existe/{numero_identificacion}")
 async def existe_cliente(numero_identificacion: str):
-    """Verifica si una cédula está registrada, sin exponer datos ni requerir clave.
-    Úsela antes de pedir la clave al cliente (igual que un cajero reconoce la
-    tarjeta antes de pedir el PIN)."""
+    'Check registration without exposing private data or requiring a PIN.'
     cliente = _find_por_cedula(_db()["clientes"], numero_identificacion)
     return {"existe": cliente is not None}
 
 
 @router.post("/auth/login")
 async def login(credenciales: Credenciales):
-    """Simula la autenticación del canal digital con cédula + clave (4 dígitos,
-    la misma del cajero). Retorna un bearer token asociado al id interno del
-    cliente."""
+    'Simulate customer ID and PIN authentication and return a customer-scoped token.'
     cliente = _find_por_cedula(_db()["clientes"], credenciales.numero_identificacion)
     if not cliente or cliente["clave"] != credenciales.clave:
-        raise HTTPException(401, "Credenciales inválidas.")
+        raise HTTPException(401, "Invalid credentials.")
     return {"token": f"tok-{cliente['id']}", "tipo": "bearer", "cliente_id": cliente["id"]}
 
 
 @router.get("/clientes/{cliente_id}/perfil-financiero")
 async def perfil_financiero(cliente_id: str, authorization: str | None = Header(None)):
-    """Score crediticio (300-850), endeudamiento, ingresos y productos activos."""
+    'Return credit score, debt, income, and active products.'
     _require_bearer(cliente_id, authorization)
     cliente = _find(_db()["clientes"], cliente_id)
     if not cliente:
-        raise HTTPException(404, f"Cliente {cliente_id} no existe.")
+        raise HTTPException(404, f"Customer {cliente_id} does not exist.")
     return {k: v for k, v in cliente.items() if k != "clave"}
 
 
@@ -81,7 +72,7 @@ async def historial_solicitudes(cliente_id: str, authorization: str | None = Hea
 
 @router.get("/productos")
 async def listar_productos():
-    """listar productos."""
+    'List available demo credit products.'
 
 
     return _db()["productos"]
@@ -89,13 +80,13 @@ async def listar_productos():
 
 class NuevaSolicitud(BaseModel):
     cliente_id: str
-    intencion: str = Field(description="Intención expresada por el cliente en lenguaje natural")
+    intencion: str = Field(description="Customer intent in natural language")
     monto_estimado: float | None = None
     plazo_meses: int | None = None
 
 
 class ActualizacionSolicitud(BaseModel):
-    respuestas: dict | None = Field(None, description="Respuestas recopiladas dinámicamente")
+    respuestas: dict | None = Field(None, description="Dynamically collected answers")
     monto_estimado: float | None = None
     plazo_meses: int | None = None
     estado: str | None = None
@@ -109,39 +100,39 @@ class Recomendacion(BaseModel):
 
 @router.post("/solicitudes", status_code=201)
 async def crear_solicitud(nueva: NuevaSolicitud):
-    solicitud = nueva.model_dump()
-    solicitud["id"] = next_id(_db()["solicitudes"], "SOL")
-    solicitud["estado"] = "en_curso"
-    solicitud["respuestas"] = {}
-    solicitud["creada_en"] = datetime.now(timezone.utc).isoformat()
-    _db()["solicitudes"].append(solicitud)
-    return solicitud
+    request_text = nueva.model_dump()
+    request_text["id"] = next_id(_db()["solicitudes"], "SOL")
+    request_text["estado"] = "en_curso"
+    request_text["respuestas"] = {}
+    request_text["creada_en"] = datetime.now(timezone.utc).isoformat()
+    _db()["solicitudes"].append(request_text)
+    return request_text
 
 
 @router.put("/solicitudes/{solicitud_id}")
 async def actualizar_solicitud(solicitud_id: str, cambios: ActualizacionSolicitud):
-    solicitud = _find(_db()["solicitudes"], solicitud_id)
-    if not solicitud:
-        raise HTTPException(404, f"Solicitud {solicitud_id} no existe.")
+    request_text = _find(_db()["solicitudes"], solicitud_id)
+    if not request_text:
+        raise HTTPException(404, f"Application {solicitud_id} does not exist.")
     if cambios.respuestas:
-        solicitud["respuestas"].update(cambios.respuestas)
+        request_text["respuestas"].update(cambios.respuestas)
     for campo in ("monto_estimado", "plazo_meses", "estado"):
         valor = getattr(cambios, campo)
         if valor is not None:
-            solicitud[campo] = valor
-    return solicitud
+            request_text[campo] = valor
+    return request_text
 
 
 @router.post("/solicitudes/{solicitud_id}/recomendacion")
 async def registrar_recomendacion(solicitud_id: str, recomendacion: Recomendacion):
-    solicitud = _find(_db()["solicitudes"], solicitud_id)
-    if not solicitud:
-        raise HTTPException(404, f"Solicitud {solicitud_id} no existe.")
+    request_text = _find(_db()["solicitudes"], solicitud_id)
+    if not request_text:
+        raise HTTPException(404, f"Application {solicitud_id} does not exist.")
     if not _find(_db()["productos"], recomendacion.producto_id):
-        raise HTTPException(422, f"Producto {recomendacion.producto_id} no existe en el catálogo.")
-    solicitud["recomendacion"] = recomendacion.model_dump()
-    solicitud["estado"] = "recomendada"
-    return solicitud
+        raise HTTPException(422, f"Product {recomendacion.producto_id} does not exist in the catalog.")
+    request_text["recomendacion"] = recomendacion.model_dump()
+    request_text["estado"] = "recomendada"
+    return request_text
 
 
 class Escalamiento(BaseModel):
@@ -154,7 +145,7 @@ class Escalamiento(BaseModel):
 
 @router.post("/escalamientos", status_code=201)
 async def escalar(escalamiento: Escalamiento):
-    """Escala a asesor humano con el resumen estructurado de 3 componentes."""
+    'Send a structured case summary to a human advisor.'
     registro = escalamiento.model_dump()
     registro["id"] = next_id(_db()["escalamientos"], "ESC")
     registro["creado_en"] = datetime.now(timezone.utc).isoformat()
@@ -170,8 +161,8 @@ class Queja(BaseModel):
 
 
 @router.post("/quejas", status_code=201)
-async def registrar_queja(queja: Queja):
-    """Las quejas se redirigen al área correspondiente, no se resuelven como crédito."""
+async def register_complaint(queja: Queja):
+    'Record a complaint and return its destination support channel.'
     registro = queja.model_dump()
     registro["id"] = next_id(_db()["quejas"], "QJA")
     registro["canal_redireccion"] = "servicio_al_cliente"

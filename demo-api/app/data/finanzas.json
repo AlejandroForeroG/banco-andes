@@ -4,13 +4,13 @@
       "id": "CLI-2001",
       "numero_identificacion": "DEMO-01",
       "clave": "2001",
-      "nombre_completo": "Cliente Demo 01",
+      "nombre_completo": "Demo Customer 01",
       "score_crediticio": 780,
       "clasificacion_score": "alto",
       "ingresos_mensuales_registrados": 9800000,
       "tipo_ingreso": "empleado",
-      "empresa_empleadora": "Empresa Demo 01",
-      "cargo_ocupacion": "Gerente de proyectos",
+      "empresa_empleadora": "Demo Company 01",
+      "cargo_ocupacion": "Project manager",
       "antiguedad_laboral_meses": 60,
       "nivel_endeudamiento_pct": 22.5,
       "capacidad_endeudamiento_disponible_pct": 47.5,
@@ -22,7 +22,7 @@
       "tipo_vivienda": "arrendada",
       "cuentas_ahorro": [
         {
-          "numero": "DEMO-CUENTA-01-01",
+          "numero": "DEMO-ACCOUNT-01-01",
           "saldo_disponible": 12500000,
           "estado": "activa"
         }
@@ -48,13 +48,13 @@
       "id": "CLI-2002",
       "numero_identificacion": "DEMO-02",
       "clave": "2002",
-      "nombre_completo": "Cliente Demo 02",
+      "nombre_completo": "Demo Customer 02",
       "score_crediticio": 410,
       "clasificacion_score": "bajo",
       "ingresos_mensuales_registrados": 2400000,
       "tipo_ingreso": "empleado",
-      "empresa_empleadora": "Empresa Demo 02",
-      "cargo_ocupacion": "Auxiliar administrativo",
+      "empresa_empleadora": "Demo Company 02",
+      "cargo_ocupacion": "Administrative assistant",
       "antiguedad_laboral_meses": 14,
       "nivel_endeudamiento_pct": 68.0,
       "capacidad_endeudamiento_disponible_pct": 2.0,
@@ -66,7 +66,7 @@
       "tipo_vivienda": "familiar",
       "cuentas_ahorro": [
         {
-          "numero": "DEMO-CUENTA-02-01",
+          "numero": "DEMO-ACCOUNT-02-01",
           "saldo_disponible": 150000,
           "estado": "activa"
         }
@@ -75,7 +75,7 @@
       "tarjetas_credito": [],
       "creditos_activos": [
         {
-          "tipo": "libre_inversion",
+          "tipo": "personal_loan",
           "saldo_capital": 9200000,
           "cuota_mensual": 610000,
           "plazo_restante_meses": 18,
@@ -91,13 +91,13 @@
       "id": "CLI-2003",
       "numero_identificacion": "DEMO-03",
       "clave": "2003",
-      "nombre_completo": "Cliente Demo 03",
+      "nombre_completo": "Demo Customer 03",
       "score_crediticio": 655,
       "clasificacion_score": "medio",
       "ingresos_mensuales_registrados": 5200000,
       "tipo_ingreso": "empleado",
-      "empresa_empleadora": "Empresa Demo 03",
-      "cargo_ocupacion": "Analista de calidad",
+      "empresa_empleadora": "Demo Company 03",
+      "cargo_ocupacion": "Quality analyst",
       "antiguedad_laboral_meses": 30,
       "nivel_endeudamiento_pct": 35.0,
       "capacidad_endeudamiento_disponible_pct": 35.0,
@@ -110,7 +110,7 @@
       "cuentas_ahorro": [],
       "cuentas_corriente": [
         {
-          "numero": "DEMO-CUENTA-03-01",
+          "numero": "DEMO-ACCOUNT-03-01",
           "saldo_disponible": 2100000,
           "estado": "activa"
         }
@@ -118,7 +118,7 @@
       "tarjetas_credito": [],
       "creditos_activos": [
         {
-          "tipo": "vehiculo",
+          "tipo": "vehicle",
           "saldo_capital": 32000000,
           "cuota_mensual": 980000,
           "plazo_restante_meses": 30,
@@ -134,13 +134,13 @@
       "id": "CLI-2004",
       "numero_identificacion": "DEMO-04",
       "clave": "2004",
-      "nombre_completo": "Cliente Demo 04",
+      "nombre_completo": "Demo Customer 04",
       "score_crediticio": 720,
       "clasificacion_score": "alto",
       "ingresos_mensuales_registrados": 14500000,
       "tipo_ingreso": "independiente",
-      "empresa_empleadora": "Empresa Demo 04",
-      "cargo_ocupacion": "Propietario — Panadería La Espiga",
+      "empresa_empleadora": "Demo Company 04",
+      "cargo_ocupacion": "Owner — Demo Bakery",
       "antiguedad_laboral_meses": 48,
       "nivel_endeudamiento_pct": 15.0,
       "capacidad_endeudamiento_disponible_pct": 55.0,
@@ -152,7 +152,7 @@
       "tipo_vivienda": "propia",
       "cuentas_ahorro": [
         {
-          "numero": "DEMO-CUENTA-04-01",
+          "numero": "DEMO-ACCOUNT-04-01",
           "saldo_disponible": 22000000,
           "estado": "activa"
         }
@@ -184,13 +184,13 @@
       "id": "CLI-2005",
       "numero_identificacion": "DEMO-05",
       "clave": "2005",
-      "nombre_completo": "Cliente Demo 05",
+      "nombre_completo": "Demo Customer 05",
       "score_crediticio": 745,
       "clasificacion_score": "alto",
       "ingresos_mensuales_registrados": 8300000,
       "tipo_ingreso": "empleado",
-      "empresa_empleadora": "Empresa Demo 05",
-      "cargo_ocupacion": "Docente",
+      "empresa_empleadora": "Demo Company 05",
+      "cargo_ocupacion": "Teacher",
       "antiguedad_laboral_meses": 72,
       "nivel_endeudamiento_pct": 31.0,
       "capacidad_endeudamiento_disponible_pct": 39.0,
@@ -202,7 +202,7 @@
       "tipo_vivienda": "propia",
       "cuentas_ahorro": [
         {
-          "numero": "DEMO-CUENTA-05-01",
+          "numero": "DEMO-ACCOUNT-05-01",
           "saldo_disponible": 5400000,
           "estado": "activa"
         }
@@ -236,13 +236,13 @@
       "id": "CLI-2006",
       "numero_identificacion": "DEMO-06",
       "clave": "2006",
-      "nombre_completo": "Cliente Demo 06",
+      "nombre_completo": "Demo Customer 06",
       "score_crediticio": null,
       "clasificacion_score": null,
       "ingresos_mensuales_registrados": 3100000,
       "tipo_ingreso": "independiente",
-      "empresa_empleadora": "Empresa Demo 06",
-      "cargo_ocupacion": "Propietario — emprendimiento en formación (venta de comida rápida)",
+      "empresa_empleadora": "Demo Company 06",
+      "cargo_ocupacion": "Owner — Early-stage fast food business",
       "antiguedad_laboral_meses": 2,
       "nivel_endeudamiento_pct": 0.0,
       "capacidad_endeudamiento_disponible_pct": 70.0,
@@ -254,7 +254,7 @@
       "tipo_vivienda": "familiar",
       "cuentas_ahorro": [
         {
-          "numero": "DEMO-CUENTA-06-01",
+          "numero": "DEMO-ACCOUNT-06-01",
           "saldo_disponible": 320000,
           "estado": "activa"
         }
@@ -271,7 +271,7 @@
   "productos": [
     {
       "id": "PRD-HIP",
-      "nombre": "Crédito Hipotecario Vivienda",
+      "nombre": "Housing Mortgage Loan",
       "monto_minimo": 50000000,
       "monto_maximo": 800000000,
       "plazo_meses_min": 60,
@@ -281,13 +281,13 @@
       "score_minimo": 620,
       "ingreso_minimo": 3000000,
       "requisitos": [
-        "cuota inicial mínima según garantía",
-        "documentación del inmueble (promesa de compraventa, avalúo)"
+        "Minimum down payment based on collateral",
+        "Property documentation (purchase agreement, appraisal)"
       ]
     },
     {
       "id": "PRD-LEA",
-      "nombre": "Leasing Habitacional",
+      "nombre": "Housing Lease",
       "monto_minimo": 80000000,
       "monto_maximo": 1200000000,
       "plazo_meses_min": 60,
@@ -297,13 +297,13 @@
       "score_minimo": 650,
       "ingreso_minimo": 4000000,
       "requisitos": [
-        "opción de compra 10-30% al final del contrato",
-        "el banco es propietario del inmueble durante la vigencia"
+        "Purchase option of 10–30% at the end of the contract",
+        "The bank owns the property during the lease"
       ]
     },
     {
       "id": "PRD-CON",
-      "nombre": "Crédito Constructor",
+      "nombre": "Construction Loan",
       "monto_minimo": 40000000,
       "monto_maximo": 600000000,
       "plazo_meses_min": 12,
@@ -313,14 +313,14 @@
       "score_minimo": 650,
       "ingreso_minimo": 4500000,
       "requisitos": [
-        "persona jurídica o natural con proyecto aprobado",
-        "licencia de construcción",
-        "se convierte en hipotecario tras la etapa de construcción"
+        "Company or individual with an approved construction project",
+        "Construction permit",
+        "Converts to a mortgage after construction"
       ]
     },
     {
       "id": "PRD-LIB",
-      "nombre": "Crédito de Libre Inversión",
+      "nombre": "Personal Loan",
       "monto_minimo": 1000000,
       "monto_maximo": 80000000,
       "plazo_meses_min": 12,
@@ -333,7 +333,7 @@
     },
     {
       "id": "PRD-VEH",
-      "nombre": "Crédito de Vehículo",
+      "nombre": "Vehicle Loan",
       "monto_minimo": 15000000,
       "monto_maximo": 200000000,
       "plazo_meses_min": 12,
@@ -343,12 +343,12 @@
       "score_minimo": 580,
       "ingreso_minimo": 2000000,
       "requisitos": [
-        "vehículo como garantía"
+        "Vehicle as collateral"
       ]
     },
     {
       "id": "PRD-PYM",
-      "nombre": "Crédito Pequeña Empresa",
+      "nombre": "Small Business Loan",
       "monto_minimo": 5000000,
       "monto_maximo": 300000000,
       "plazo_meses_min": 12,
@@ -358,9 +358,9 @@
       "score_minimo": 580,
       "ingreso_minimo": 2000000,
       "requisitos": [
-        "RUT activo",
-        "antigüedad del negocio >= 12 meses",
-        "estados financieros"
+        "Active tax registration",
+        "Business operating for at least 12 months",
+        "Financial statements"
       ]
     }
   ],

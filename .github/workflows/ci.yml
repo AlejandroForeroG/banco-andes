@@ -11,7 +11,7 @@ jobs:
           cache: pip
       - run: pip install -e .
       - run: python -m pytest -q
-      - run: python -m unittest agente2.test_fuentes -v
+      - run: python -m unittest reviewer.test_sources -v
   demo-api:
     runs-on: ubuntu-latest
     defaults:

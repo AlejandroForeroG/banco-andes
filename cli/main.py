@@ -1,4 +1,4 @@
-"""Banco Andes."""
+'Banco Andes.'
 
 
 import asyncio
@@ -17,27 +17,27 @@ from cli.config import get_settings
 
 @click.group()
 def cli():
-    """Banco Andes — orientación financiera."""
+    'Banco Andes — financial guidance.'
 
 
 @cli.command()
 def version():
-    """Versión instalada del proyecto."""
+    'Show the installed project version.'
     try:
         click.echo(pkg_version("banco-andes"))
     except PackageNotFoundError:
-        click.echo("0.1.0 (sin instalar; use pip install -e .)")
+        click.echo("0.1.0 (not installed; run pip install -e .)")
 
 
 @cli.command()
 def config():
-    """Configuración vigente del agente."""
+    'Show current assistant settings.'
     settings = get_settings()
-    click.echo(f"modelo Ollama    : {settings.ollama_model}")
+    click.echo(f"Ollama model     : {settings.ollama_model}")
     click.echo(f"Ollama URL       : {settings.ollama_base_url}")
-    click.echo(f"API empresarial  : {settings.api_base_url}")
-    click.echo(f"caso de negocio  : {settings.caso_negocio}")
-    click.echo(f"LangSmith activo : {settings.langsmith_tracing}")
+    click.echo(f"Business API     : {settings.api_base_url}")
+    click.echo(f"Business domain  : {settings.business_domain}")
+    click.echo(f"LangSmith enabled: {settings.langsmith_tracing}")
 
 
 async def _reunir_tools(usar_mcp: bool) -> list:
@@ -52,18 +52,18 @@ async def _reunir_tools(usar_mcp: bool) -> list:
     if usar_mcp:
         mcp_tools, error_mcp = await load_mcp_tools_safe()
         if error_mcp:
-            ui.aviso(f"Servidor MCP no disponible ({error_mcp}). Continuando solo con tools locales.")
+            ui.aviso(f"MCP server unavailable ({error_mcp}). Continuing with local tools only.")
         tools = tools + mcp_tools
     return tools
 
 
 @cli.command()
-@click.option("--sin-mcp", is_flag=True, help="No conectar el servidor MCP (solo tools locales).")
-def herramientas(sin_mcp: bool):
-    """Lista las herramientas que el agente tiene disponibles."""
+@click.option("--no-mcp", "sin_mcp", is_flag=True, help="Skip the MCP server and use local tools only.")
+def tools(sin_mcp: bool):
+    'List available assistant tools.'
     tools = asyncio.run(_reunir_tools(usar_mcp=not sin_mcp))
     if not tools:
-        ui.aviso("No hay herramientas disponibles. Revisa la configuración.")
+        ui.aviso("No tools are available. Check the configuration.")
         return
     for tool in tools:
         descripcion = (tool.description or "").split("\n")[0]
@@ -71,29 +71,26 @@ def herramientas(sin_mcp: bool):
 
 
 def _ask_pin() -> str:
-    """Clave oculta en terminal; por stdin cuando el CLI corre dentro de un script."""
+    'Read a hidden PIN from the terminal or stdin in scripted execution.'
     if sys.stdin.isatty():
-        return click.prompt("Clave", hide_input=True)
+        return click.prompt("PIN", hide_input=True)
     pin = sys.stdin.readline().strip()
     if not pin:
-        raise click.ClickException("No se recibió la clave por stdin.")
+        raise click.ClickException("No PIN was received on stdin.")
     return pin
 
 
-@cli.command(name="probar-tool")
-@click.argument("nombre")
-@click.argument("argumentos", default="{}")
-@click.option("--sin-mcp", is_flag=True, help="Buscar solo entre las tools locales.")
+@cli.command(name="call-tool")
+@click.argument("nombre", metavar="TOOL")
+@click.argument("argumentos", default="{}", metavar="ARGUMENTS")
+@click.option("--no-mcp", "sin_mcp", is_flag=True, help="Search local tools only.")
 @click.option(
-    "--identificacion",
+    "--customer-id",
     "identification",
-    help="Autentica la sesión antes de invocar (pide la clave); requerido por las tools privadas.",
+    help="Authenticate before calling (prompts for a PIN); required for private tools.",
 )
 def probar_tool(nombre: str, argumentos: str, sin_mcp: bool, identification: str | None):
-    """Invoca una tool directamente (sin LLM), útil para probar el acceso a la API.
-
-    Ejemplo: agente probar-tool consultar_contacto '{"contacto_id": "CTO-001"}'
-    """
+    'Call a tool directly without invoking the model.'
     if identification:
         from agent.session import start_session
 
@@ -102,35 +99,35 @@ def probar_tool(nombre: str, argumentos: str, sin_mcp: bool, identification: str
             session = start_session(identification, pin)
         except RuntimeError as exc:
             raise click.ClickException(str(exc))
-        ui.info(f"Sesión iniciada para {session.client_id}.")
+        ui.info(f"Signed in as {session.client_id}.")
 
     async def _run():
         tools = await _reunir_tools(usar_mcp=not sin_mcp)
         tool = next((t for t in tools if t.name == nombre), None)
         if tool is None:
-            disponibles = ", ".join(t.name for t in tools)
-            raise click.ClickException(f"Tool '{nombre}' no existe. Disponibles: {disponibles}")
+            available = ", ".join(t.name for t in tools)
+            raise click.ClickException(f"Tool '{nombre}' does not exist. Available: {available}")
         try:
             args = json.loads(argumentos)
         except json.JSONDecodeError as exc:
-            raise click.ClickException(f"Argumentos inválidos (deben ser JSON): {exc}")
+            raise click.ClickException(f"Invalid arguments (expected JSON): {exc}")
         try:
-            resultado = await tool.ainvoke(args)
+            result = await tool.ainvoke(args)
         except Exception as exc:
             raise click.ClickException(str(exc))
-        click.echo(resultado if isinstance(resultado, str) else json.dumps(resultado, indent=2, ensure_ascii=False))
+        click.echo(result if isinstance(result, str) else json.dumps(result, indent=2, ensure_ascii=False))
 
     asyncio.run(_run())
 
 
 @cli.command()
-@click.option("--sin-mcp", is_flag=True, help="No conectar el servidor MCP (solo tools locales).")
+@click.option("--no-mcp", "sin_mcp", is_flag=True, help="Skip the MCP server and use local tools only.")
 @click.option(
     "--thread-id",
-    help="Identificador de conversación para reanudarla; si se omite se crea uno nuevo.",
+    help="Conversation ID to resume; creates a new conversation when omitted.",
 )
 def chat(sin_mcp: bool, thread_id: str | None):
-    """Conversación interactiva con el agente."""
+    'Start an interactive conversation with the assistant.'
     asyncio.run(_chat(usar_mcp=not sin_mcp, initial_thread_id=thread_id))
 
 
@@ -142,17 +139,17 @@ async def _start_session() -> None:
 
     prompt_session = PromptSession()
     with patch_stdout():
-        identification = (await prompt_session.prompt_async("identificación ❯ ")).strip()
+        identification = (await prompt_session.prompt_async("customer ID ❯ ")).strip()
         if not identification:
-            ui.aviso("Autenticación cancelada.")
+            ui.aviso("Authentication cancelled.")
             return
-        pin = (await prompt_session.prompt_async("clave ❯ ", is_password=True)).strip()
+        pin = (await prompt_session.prompt_async("PIN ❯ ", is_password=True)).strip()
     try:
         session = start_session(identification, pin)
     except RuntimeError as exc:
         ui.error(str(exc))
         return
-    ui.info(f"Sesión iniciada para {session.client_id}.")
+    ui.info(f"Signed in as {session.client_id}.")
 
 
 async def _chat(usar_mcp: bool, initial_thread_id: str | None = None):
@@ -168,7 +165,7 @@ async def _chat(usar_mcp: bool, initial_thread_id: str | None = None):
 
     tools = await _reunir_tools(usar_mcp)
     from agent.review import listener
-    listener.set(lambda event: ui.info('Revisión: ' + json.dumps(event, ensure_ascii=False)))
+    listener.set(lambda event: ui.info('Review: ' + json.dumps(event, ensure_ascii=False)))
     current_thread_id = (initial_thread_id or str(uuid.uuid4())).strip()
     turno = 0
     last_review = {}
@@ -176,7 +173,7 @@ async def _chat(usar_mcp: bool, initial_thread_id: str | None = None):
 
     async with open_async_checkpointer() as checkpointer:
         graph = build_graph(tools=tools, checkpointer=checkpointer)
-        ui.info(f"Conversación: {current_thread_id}")
+        ui.info(f"Conversation: {current_thread_id}")
 
         while True:
             try:
@@ -187,47 +184,47 @@ async def _chat(usar_mcp: bool, initial_thread_id: str | None = None):
 
             if not texto:
                 continue
-            if texto in ("/salir", "/exit"):
+            if texto in ("/exit", "/exit"):
                 break
-            if texto == "/nueva":
+            if texto == "/new":
                 current_thread_id = str(uuid.uuid4())
                 turno = 0
                 last_review = {}
-                ui.aviso(f"Nueva conversación: {current_thread_id}")
+                ui.aviso(f"New conversation: {current_thread_id}")
                 continue
             if texto == "/thread":
-                ui.info(f"Conversación actual: {current_thread_id}")
+                ui.info(f"Current conversation: {current_thread_id}")
                 continue
-            if texto == "/estado":
+            if texto == "/status":
                 state = await graph.aget_state(
                     {"configurable": {"thread_id": current_thread_id}}
                 )
                 values = state.values
                 ui.info(
-                    f"Estado: {len(values.get('messages', []))} mensajes · "
-                    f"resumen: {'sí' if values.get('summary') else 'no'} · "
-                    f"preferencias recordadas: {len(values.get('long_term_memory', {}))}"
+                    f"State: {len(values.get('messages', []))} messages · "
+                    f"summary: {'yes' if values.get('summary') else 'no'} · "
+                    f"remembered preferences: {len(values.get('long_term_memory', {}))}"
                 )
                 continue
-            if texto == "/memoria":
+            if texto == "/memory":
                 from agent.memory.store import load_client_memory
                 from agent.session import active_session
 
                 active = active_session()
                 if active is None:
-                    ui.aviso("Inicie sesión con /login para consultar su memoria.")
+                    ui.aviso("Sign in with /login to view your saved preferences.")
                 else:
                     remembered = load_client_memory(active.client_id)
                     if remembered:
                         ui.info(json.dumps(remembered, ensure_ascii=False))
                     else:
-                        ui.aviso("No hay preferencias guardadas para este cliente.")
+                        ui.aviso("No preferences are saved for this customer.")
                 continue
             if texto == "/login":
                 last_review = {}
                 await _start_session()
                 continue
-            wants_advisor = texto == '/asesor'
+            wants_advisor = texto == '/advisor'
             if not texto.startswith('/'):
                 from cli.intent import requests_advisor
                 try:
@@ -239,14 +236,14 @@ async def _chat(usar_mcp: bool, initial_thread_id: str | None = None):
                 from agent.human import transfer, transfer_summary
                 try:
                     if not last_review:
-                        last_review = {'status': 'solicitada', 'error': 'SOLICITUD_USUARIO'}
+                        last_review = {'status': 'requested', 'error': 'USER_REQUEST'}
                     summary = transfer_summary(last_review)
-                    ui.info('Se enviaría al asesor: ' + json.dumps(summary, ensure_ascii=False))
+                    ui.info('Advisor handoff preview: ' + json.dumps(summary, ensure_ascii=False))
                     with patch_stdout():
-                        accepted = (await prompt_session.prompt_async('¿Aceptas transferir este resumen? [sí/no] ')).strip().lower() in ('si', 'sí')
+                        accepted = (await prompt_session.prompt_async('Send this summary to an advisor? [yes/no] ')).strip().lower() in ('y', 'yes')
                     result = await transfer(last_review, accepted, tools)
                     ui.info(json.dumps(result, ensure_ascii=False))
-                    if result.get('transferido'):
+                    if result.get('transferred'):
                         last_review = {}
                 except (ValueError, RuntimeError) as exc:
                     ui.aviso(str(exc))
@@ -254,16 +251,16 @@ async def _chat(usar_mcp: bool, initial_thread_id: str | None = None):
             if texto == "/logout":
                 last_review = {}
                 end_session()
-                ui.info("Sesión cerrada. El agente ya no puede consultar datos privados.")
+                ui.info("Signed out. The assistant can no longer access private data.")
                 continue
-            if texto == "/ayuda":
+            if texto == "/help":
                 ui.console.print(
-                    "[dim]/login abre la sesión · /logout la cierra · "
-                    "/thread muestra el identificador · /estado inspecciona el contexto · "
-                    "/memoria muestra preferencias · /nueva crea otra conversación · "
-                    "Di 'quiero hablar con un asesor' para solicitar atención humana · "
-                    "/asesor también ofrece transferencia consentida · "
-                    "/salir termina[/dim]"
+                    "[dim]/login signs in · /logout signs out · "
+                    "/thread shows the conversation ID · /status inspects context · "
+                    "/memory shows preferences · /new starts a conversation · "
+                    "Say 'I want to speak to an advisor' for human assistance · "
+                    "/advisor also offers a handoff with consent · "
+                    "/exit ends the chat[/dim]"
                 )
                 continue
 
@@ -271,10 +268,10 @@ async def _chat(usar_mcp: bool, initial_thread_id: str | None = None):
             run_id = uuid.uuid4()
             run_config = RunnableConfig(
                 run_id=run_id,
-                run_name=f"chat:{settings.caso_negocio}:turno-{turno}",
-                tags=[settings.caso_negocio, "cli"],
+                run_name=f"chat:{settings.business_domain}:turno-{turno}",
+                tags=[settings.business_domain, "cli"],
                 metadata={
-                    "caso": settings.caso_negocio,
+                    "caso": settings.business_domain,
                     "turno": turno,
                     "canal": "cli",
                     "mcp_habilitado": usar_mcp,
@@ -289,14 +286,14 @@ async def _chat(usar_mcp: bool, initial_thread_id: str | None = None):
                 ):
                     for node_name, node_output in update.items():
                         if node_output.get('review_required'):
-                            ui.info('Estoy revisando la orientación antes de mostrarla.')
+                            ui.info('I am reviewing the guidance before showing it.')
                         if node_output.get('review'):
                             last_review = node_output['review']
                         if node_name == "comprimir_contexto":
                             ui.info(
-                                "Contexto comprimido: "
+                                "Context compressed: "
                                 f"{node_output['compression_before']} → "
-                                f"{node_output['compression_after']} mensajes + resumen."
+                                f"{node_output['compression_after']} messages + summary."
                             )
                         for message in node_output.get("messages", []):
                             if isinstance(message, AIMessage) and message.tool_calls:
@@ -309,15 +306,15 @@ async def _chat(usar_mcp: bool, initial_thread_id: str | None = None):
                             elif isinstance(message, AIMessage) and message.content:
                                 ui.respuesta_agente(message.content)
                 if settings.langsmith_tracing:
-                    ui.info(f"Traza LangSmith: {run_id}")
+                    ui.info(f"LangSmith trace: {run_id}")
             except Exception as exc:
-                ui.error(f"Fallo al invocar el agente: {exc}")
+                ui.error(f"Assistant invocation failed: {exc}")
                 ui.aviso(
-                    f"Verifique que Ollama está corriendo ({settings.ollama_base_url}) y que el "
-                    f"modelo está descargado: ollama pull {settings.ollama_model}"
+                    f"Check that Ollama is running ({settings.ollama_base_url}) and the "
+                    f"model is downloaded: ollama pull {settings.ollama_model}"
                 )
 
-    ui.console.print("[dim]Hasta pronto.[/dim]")
+    ui.console.print("[dim]Goodbye.[/dim]")
 
 
 if __name__ == "__main__":

@@ -25,7 +25,7 @@ def build_checkpointer(backend: str = "sqlite"):
     if backend == "memory":
         return InMemorySaver()
     if backend != "sqlite":
-        raise ValueError(f"Backend de checkpointer no soportado: {backend}")
+        raise ValueError(f"Unsupported checkpointer backend: {backend}")
 
     connection = sqlite3.connect(
         checkpoint_path(),

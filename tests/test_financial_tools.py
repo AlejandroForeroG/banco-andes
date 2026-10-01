@@ -1,4 +1,4 @@
-"""Banco Andes."""
+'Capability and regression tests.'
 
 import httpx
 import pytest
@@ -13,10 +13,10 @@ pytestmark = pytest.mark.tools
 
 def test_tools_financieras_tienen_contrato_estable():
     assert {tool.name for tool in finance_tools.get_local_tools()} == {
-        "verificar_cliente",
-        "consultar_catalogo_creditos",
-        "consultar_perfil_financiero",
-        "consultar_historial_solicitudes",
+        "verify_customer",
+        "query_credit_catalog",
+        "query_financial_profile",
+        "query_application_history",
     }
 
 
@@ -26,14 +26,14 @@ def test_timeout_se_convierte_en_error_comprensible(monkeypatch):
 
     monkeypatch.setattr(finance_tools.httpx, "request", timeout)
 
-    with pytest.raises(RuntimeError, match="no respondió a tiempo"):
-        finance_tools.consultar_catalogo_creditos.invoke({"categoria": "todos"})
+    with pytest.raises(RuntimeError, match="timed out"):
+        finance_tools.query_credit_catalog.invoke({"categoria": "all"})
 
 
 def test_error_de_tool_prohibe_inventar_resultados():
-    message = _tool_error_message(RuntimeError("servicio no disponible"))
-    assert "servicio no disponible" in message
-    assert "No inventes" in message
+    message = _tool_error_message(RuntimeError("service unavailable"))
+    assert "service unavailable" in message
+    assert "Do not invent" in message
 
 
 def test_cliente_mcp_arranca_modulo_desde_raiz_del_proyecto():

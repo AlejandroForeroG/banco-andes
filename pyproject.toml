@@ -5,19 +5,19 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "banco-andes"
 version = "0.1.0"
-description = "Orientador financiero con revisión independiente, memoria y MCP"
+description = "Financial guidance with independent review, memory, and MCP"
 requires-python = ">=3.11"
 dynamic = ["dependencies"]
 
 [project.scripts]
-agente = "cli.main:cli"
+bank-agent = "cli.main:cli"
 
 [tool.setuptools]
-packages = ["cli", "agent", "agent.memory", "agent.reasoning", "agente2", "mcp_server", "observability"]
+packages = ["cli", "agent", "agent.memory", "agent.reasoning", "reviewer", "mcp_server", "observability"]
 py-modules = ["contract"]
 
 [tool.setuptools.package-data]
-agente2 = ["*.sql", "data/*.sqlite3"]
+reviewer = ["*.sql", "data/*.sqlite3"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
@@ -27,10 +27,10 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "--strict-markers"
 markers = [
-    "review: contrato, seguridad e integración de dos agentes",
-    "cli: ambiente, CLI y configuración",
-    "tools: herramientas, grafo del agente y servidor MCP",
-    "observability: observabilidad con LangSmith (requiere credenciales)",
-    "memory: memoria de corto y largo plazo",
-    "reasoning: descomposición de tareas (ReAct / Plan-and-Execute)",
+    "review: contract, security, and two-agent integration",
+    "cli: environment, CLI, and configuration",
+    "tools: tools, agent graph, and MCP server",
+    "observability: LangSmith observability (requires credentials)",
+    "memory: short-term and long-term memory",
+    "reasoning: task decomposition (ReAct / Plan-and-Execute)",
 ]
