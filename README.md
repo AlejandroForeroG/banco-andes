@@ -84,13 +84,6 @@ python -m pytest tests/test_observability.py -q
 
 The second evaluation requires a LangSmith API key and project in the environment. Contract tests alone do not establish the quality of model responses.
 
-## Publish to your account
+## Repository
 
-Create an empty repository named `banco-andes` in your account, then run from this directory:
-
-```bash
-git remote add origin https://github.com/YOUR_USERNAME/banco-andes.git
-git push -u origin main
-```
-
-This copy has its own history and does not modify the original repository. See [credits](NOTICE.md).
+Source code: [AlejandroForeroG/banco-andes](https://github.com/AlejandroForeroG/banco-andes). See [credits](NOTICE.md).
